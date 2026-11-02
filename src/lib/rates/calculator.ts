@@ -15,6 +15,10 @@ export function calculateDetailedBOQ(
   city: string,
   qualityTier: QualityTier = 'standard'
 ): BudgetSummary {
+  if (builtUpAreaSqFt <= 0) {
+    throw new Error('builtUpAreaSqFt must be greater than 0');
+  }
+
   const rates = cityMaterialRates[city] || cityMaterialRates['Delhi/NCR'];
   const multiplier = qualityMultipliers[qualityTier];
 
@@ -31,6 +35,7 @@ export function calculateDetailedBOQ(
   const flooringTiling = Math.round(builtUpAreaSqFt * 140 * multiplier);
   const doorsWindows = Math.round(builtUpAreaSqFt * 110 * multiplier);
   const paintingFinishing = Math.round(builtUpAreaSqFt * 90 * multiplier);
+  const finishingLabour = Math.round(builtUpAreaSqFt * rates.finishingLabourPerSqFt * multiplier);
 
   const electricalWiringPoints = Math.round(builtUpAreaSqFt * 85 * multiplier);
   const plumbingSanitary = Math.round(builtUpAreaSqFt * 75 * multiplier);
@@ -42,6 +47,7 @@ export function calculateDetailedBOQ(
     { category: 'finishing' as const, name: 'Flooring, Tiling & Cladding', amount: flooringTiling },
     { category: 'finishing' as const, name: 'Doors, Windows & Ironmongery', amount: doorsWindows },
     { category: 'finishing' as const, name: 'Internal & External Painting', amount: paintingFinishing },
+    { category: 'finishing' as const, name: 'Finishing Labour & Carpentry', amount: finishingLabour },
     { category: 'services' as const, name: 'Electrical Wiring & Fixtures', amount: electricalWiringPoints },
     { category: 'services' as const, name: 'Plumbing & Drainage Network', amount: plumbingSanitary },
     { category: 'regulatory' as const, name: 'Municipal Sanction & Approval Consultation', amount: architectRegulatoryApprovals },

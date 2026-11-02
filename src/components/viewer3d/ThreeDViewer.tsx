@@ -1,7 +1,16 @@
 'use client';
 
 import React, { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { HousePlan } from '@/types/plan';
+
+const BuildingCanvas = dynamic(
+  () => import('./BuildingCanvas').then((m) => m.BuildingCanvas),
+  {
+    ssr: false,
+    loading: () => <div className="text-xs text-slate-400">Loading 3D WebGL Canvas...</div>,
+  }
+);
 
 export interface ThreeDViewerProps {
   plan: HousePlan;
@@ -30,38 +39,25 @@ export const ThreeDViewer: React.FC<ThreeDViewerProps> = ({ plan }) => {
         </div>
       </div>
 
-      <div className="relative h-[380px] w-full flex items-center justify-center bg-gradient-to-b from-slate-900 to-slate-950 p-6">
-        {/* Isometric 3D Render Presentation */}
-        <div className="text-center max-w-md">
-          <div className="mx-auto w-24 h-24 mb-4 rounded-full bg-sky-500/10 border border-sky-500/30 flex items-center justify-center">
-            <svg
-              className="w-12 h-12 text-sky-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="1.5"
-                d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-              />
-            </svg>
-          </div>
-          <h4 className="text-base font-medium text-white mb-1">
-            Interactive Three.js 3D Model Loaded
-          </h4>
-          <p className="text-xs text-slate-400 mb-4">
-            Extruded from {plan.floors.reduce((acc, f) => acc + f.rooms.length, 0)} room coordinates with {plan.facade.features.join(', ')}.
-          </p>
-          <div className="flex justify-center gap-3">
-            <span className="text-[11px] font-mono bg-slate-800 text-sky-300 px-2.5 py-1 rounded border border-slate-700">
+      <div className="relative h-[380px] w-full flex items-center justify-center bg-gradient-to-b from-slate-900 to-slate-950 p-6 overflow-hidden">
+        {/* Interactive 3D WebGL Canvas */}
+        <BuildingCanvas plan={plan} wireframe={wireframe} />
+
+        {/* Footer Badges and Facade Overlay */}
+        <div className="absolute bottom-3 left-4 right-4 flex justify-between items-center pointer-events-none">
+          <div className="flex gap-2">
+            <span className="text-[11px] font-mono bg-slate-800/90 text-sky-300 px-2.5 py-1 rounded border border-slate-700 pointer-events-auto">
               {plan.plot.width}&apos; × {plan.plot.length}&apos; Footprint
             </span>
-            <span className="text-[11px] font-mono bg-slate-800 text-emerald-300 px-2.5 py-1 rounded border border-slate-700">
+            <span className="text-[11px] font-mono bg-slate-800/90 text-emerald-300 px-2.5 py-1 rounded border border-slate-700 pointer-events-auto">
               {plan.structural.footingType}
             </span>
           </div>
+          {plan.facade.features.length > 0 && (
+            <span className="text-[11px] bg-slate-800/90 text-slate-300 px-2.5 py-1 rounded border border-slate-700 pointer-events-auto">
+              {plan.facade.features.join(', ')}
+            </span>
+          )}
         </div>
       </div>
     </div>

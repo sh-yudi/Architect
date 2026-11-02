@@ -1,10 +1,19 @@
 import { NextResponse } from 'next/server';
 import { generateHousePlan } from '@/lib/ai/generatePlan';
-import { WizardFormData } from '@/types/wizard';
+import { wizardFormSchema } from '@/lib/schemas/wizardSchema';
 
 export async function POST(req: Request) {
   try {
-    const formData = (await req.json()) as WizardFormData;
+    const body = await req.json();
+    const result = wizardFormSchema.safeParse(body);
+    if (!result.success) {
+      return NextResponse.json(
+        { success: false, errors: result.error.flatten() },
+        { status: 400 }
+      );
+    }
+
+    const formData = result.data;
     const plan = await generateHousePlan(formData);
     const projectId = `proj_${Date.now()}`;
 

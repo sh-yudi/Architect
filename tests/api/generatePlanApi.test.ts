@@ -89,6 +89,24 @@ describe('API Route: POST /api/generate-plan', () => {
     expect(body.plan.plot.length).toBe(40);
   });
 
+  it('should return 400 when validation fails on invalid request body', async () => {
+    const invalidData = {
+      plot: { width: -10, length: 40 }, // missing fields and negative width
+    };
+    const mockRequest = new Request('http://localhost:3000/api/generate-plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(invalidData),
+    });
+
+    const response = await postGeneratePlan(mockRequest);
+    expect(response.status).toBe(400);
+
+    const body = await response.json();
+    expect(body.success).toBe(false);
+    expect(body.errors).toBeDefined();
+  });
+
   it('should return 500 when plan generation fails', async () => {
     // Malformed request with invalid JSON body
     const mockRequest = new Request('http://localhost:3000/api/generate-plan', {
@@ -130,6 +148,19 @@ describe('API Route: POST /api/export-cad', () => {
     expect(dxfText).toContain('PLOT_BOUNDARY');
   });
 
+  it('should return 400 when plan payload is missing', async () => {
+    const mockRequest = new Request('http://localhost:3000/api/export-cad', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+
+    const response = await postExportCad(mockRequest);
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.error).toBe('Missing plan payload');
+  });
+
   it('should return 500 on export CAD failure', async () => {
     const mockRequest = new Request('http://localhost:3000/api/export-cad', {
       method: 'POST',
@@ -162,6 +193,19 @@ describe('API Route: POST /api/export-affidavit', () => {
     const arrayBuffer = await response.arrayBuffer();
     const pdfDoc = await PDFDocument.load(arrayBuffer);
     expect(pdfDoc.getPageCount()).toBeGreaterThanOrEqual(1);
+  });
+
+  it('should return 400 when plan or formData payload is missing', async () => {
+    const mockRequest = new Request('http://localhost:3000/api/export-affidavit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan: mockPlan }), // missing formData
+    });
+
+    const response = await postExportAffidavit(mockRequest);
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.error).toBe('Missing plan or formData payload');
   });
 
   it('should return 500 on export affidavit failure', async () => {

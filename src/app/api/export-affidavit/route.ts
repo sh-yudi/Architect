@@ -5,10 +5,11 @@ import { WizardFormData } from '@/types/wizard';
 
 export async function POST(req: Request) {
   try {
-    const { plan, formData } = (await req.json()) as { plan: HousePlan; formData: WizardFormData };
-    if (!plan || !formData) {
-      return NextResponse.json({ error: 'PDF export failed' }, { status: 500 });
+    const body = await req.json();
+    if (!body || !body.plan || !body.formData) {
+      return NextResponse.json({ error: 'Missing plan or formData payload' }, { status: 400 });
     }
+    const { plan, formData } = body as { plan: HousePlan; formData: WizardFormData };
     const pdfBytes = await generateIndemnityAffidavitPDF(plan, formData);
 
     return new Response(Buffer.from(pdfBytes), {

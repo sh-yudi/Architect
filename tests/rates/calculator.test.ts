@@ -52,5 +52,18 @@ describe('BOQ Calculator Engine', () => {
     expect(categories.has('finishing')).toBe(true);
     expect(categories.has('services')).toBe(true);
     expect(categories.has('regulatory')).toBe(true);
+
+    const finishingLabour = boq.lineItems.find(item => item.name === 'Finishing Labour & Carpentry');
+    expect(finishingLabour).toBeDefined();
+    expect(finishingLabour?.amount).toBe(180000); // 1000 * 180 * 1.0
+  });
+
+  it('should throw error when builtUpAreaSqFt is non-positive', () => {
+    expect(() => calculateDetailedBOQ(0, 'Delhi/NCR', 'standard')).toThrow(
+      'builtUpAreaSqFt must be greater than 0'
+    );
+    expect(() => calculateDetailedBOQ(-500, 'Delhi/NCR', 'standard')).toThrow(
+      'builtUpAreaSqFt must be greater than 0'
+    );
   });
 });

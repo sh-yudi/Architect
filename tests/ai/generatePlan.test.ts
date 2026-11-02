@@ -56,6 +56,9 @@ describe('Gemini House Plan Generator', () => {
     expect(plan.floors.length).toBeGreaterThanOrEqual(1);
     expect(plan.budget.total).toBeGreaterThan(0);
     expect(plan.regulatory.far).toBeGreaterThan(0);
+    // Electrical points mapped across all rooms on all floors
+    const totalRooms = plan.floors.reduce((acc, f) => acc + f.rooms.length, 0);
+    expect(plan.electrical.pointsByRoom.length).toBe(totalRooms);
 
     // Validate with zod schema
     const parseResult = housePlanZodSchema.safeParse(plan);
@@ -149,8 +152,52 @@ describe('Gemini House Plan Generator', () => {
     expect(plan.floors.length).toBeGreaterThanOrEqual(1);
     expect(plan.facade.features).toContain('Large Glazed Windows');
     expect(plan.budget.total).toBeGreaterThan(0);
+    // Dynamic ground coverage calculated from ground floor room areas
+    expect(plan.regulatory.groundCoverage).toBe(28.7);
     expect(housePlanZodSchema.safeParse(plan).success).toBe(true);
 
+    vi.doUnmock('@google/genai');
+  });
+
+  it('should warn and fall back to deterministic plan when Gemini output fails schema validation', async () => {
+    // Return an invalid plan missing required rooms and setbacks
+    const invalidGeminiResponse = {
+      plot: { width: 30, length: 40, facing: 'East', area: 1200 },
+      setbacks: { front: -5, rear: 6.5, left: 3, right: 3 }, // negative setback fails schema
+      floors: [],
+    };
+
+    vi.doMock('@google/genai', () => {
+      return {
+        Type: {
+          OBJECT: 'OBJECT',
+          STRING: 'STRING',
+          NUMBER: 'NUMBER',
+          INTEGER: 'INTEGER',
+          ARRAY: 'ARRAY',
+        },
+        GoogleGenAI: vi.fn().mockImplementation(() => ({
+          models: {
+            generateContent: vi.fn().mockResolvedValue({
+              text: JSON.stringify(invalidGeminiResponse),
+            }),
+          },
+        })),
+      };
+    });
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const plan = await generateHousePlan(mockWizardData, 'test-api-key');
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      'Gemini plan validation failed:',
+      expect.anything()
+    );
+    expect(plan).toBeDefined();
+    expect(plan.floors.length).toBe(2);
+    expect(housePlanZodSchema.safeParse(plan).success).toBe(true);
+
+    warnSpy.mockRestore();
     vi.doUnmock('@google/genai');
   });
 

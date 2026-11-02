@@ -118,12 +118,19 @@ export async function generateHousePlan(formData: WizardFormData, apiKey?: strin
             }))
           : [{ roomId: 'r1', lightPoints: 4, fanPoints: 2, powerSockets: 4 }];
 
+        const plotArea = formData.plot.width * formData.plot.length;
+        const groundFloor = mappedFloors.find((f: any) => f.level === 0) || mappedFloors[0];
+        const groundFloorRoomsArea = groundFloor
+          ? groundFloor.rooms.reduce((acc: number, r: any) => acc + (r.width * r.length), 0)
+          : builtUpArea;
+        const groundCoverage = Number(((groundFloorRoomsArea / plotArea) * 100).toFixed(1));
+
         const mergedPlan: HousePlan = {
           plot: {
             width: formData.plot.width,
             length: formData.plot.length,
             facing: formData.plot.facing,
-            area: formData.plot.width * formData.plot.length,
+            area: plotArea,
           },
           setbacks: rawJson.setbacks || { front: 10, rear: 6.5, left: 3, right: 3 },
           floors: mappedFloors,
@@ -152,8 +159,8 @@ export async function generateHousePlan(formData: WizardFormData, apiKey?: strin
             exteriorMaterial: rawJson.facade?.exteriorMaterial || 'Textured Weather-Shield Plaster',
           },
           regulatory: {
-            far: Number((builtUpArea / (formData.plot.width * formData.plot.length)).toFixed(2)),
-            groundCoverage: 58.5,
+            far: Number((builtUpArea / plotArea).toFixed(2)),
+            groundCoverage,
             builtUpArea,
             violations: [],
           },
@@ -162,6 +169,8 @@ export async function generateHousePlan(formData: WizardFormData, apiKey?: strin
         const validated = housePlanZodSchema.safeParse(mergedPlan);
         if (validated.success) {
           return validated.data as HousePlan;
+        } else {
+          console.warn('Gemini plan validation failed:', validated.error.flatten());
         }
       }
     } catch (e) {
@@ -284,7 +293,7 @@ export async function generateHousePlan(formData: WizardFormData, apiKey?: strin
       slabType: 'M20 Reinforced Concrete 5-inch Slab',
     },
     electrical: {
-      pointsByRoom: groundRooms.map(r => ({
+      pointsByRoom: floors.flatMap(f => f.rooms).map(r => ({
         roomId: r.id,
         lightPoints: 3,
         fanPoints: 1,

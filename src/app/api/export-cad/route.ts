@@ -4,10 +4,11 @@ import { HousePlan } from '@/types/plan';
 
 export async function POST(req: Request) {
   try {
-    const { plan } = (await req.json()) as { plan: HousePlan };
-    if (!plan) {
-      return NextResponse.json({ error: 'DXF export failed' }, { status: 500 });
+    const body = await req.json();
+    if (!body || !body.plan) {
+      return NextResponse.json({ error: 'Missing plan payload' }, { status: 400 });
     }
+    const { plan } = body as { plan: HousePlan };
     const dxf = generatePlanDXF(plan);
 
     return new Response(dxf, {

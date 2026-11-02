@@ -91,6 +91,18 @@ describe('CAD & Regulatory Export Engine', () => {
     expect(dxf).toContain('Living Room');
     expect(dxf).toContain('Kitchen');
     expect(dxf).toContain('Master Bedroom');
+
+    // Multi-floor spatial offset assertions: side-by-side without spatial overlap
+    expect(dxf).toContain('Ground Floor Plan');
+    expect(dxf).toContain('First Floor Plan');
+
+    // Plot width is 30, so First Floor offsetX = 1 * (30 + 15) = 45.
+    // Ground floor room boundary spans X in [3, 27].
+    // First floor room boundary spans X in [45 + 3, 45 + 17] = [48, 62], ensuring no overlap.
+    expect(dxf).toContain('\n48\n'); // x1 of First Floor Master Bedroom
+    expect(dxf).toContain('\n62\n'); // x2 of First Floor Master Bedroom
+    expect(dxf).toContain('\n45\n'); // offsetX boundary of First Floor plot
+    expect(dxf).toContain('\n75\n'); // offsetX + width boundary of First Floor plot (45 + 30)
   });
 
   it('should safely handle partial or default regulatory data in affidavit PDF', async () => {

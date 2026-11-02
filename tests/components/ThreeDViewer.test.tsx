@@ -1,9 +1,18 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { ThreeDViewer } from '@/components/viewer3d/ThreeDViewer';
 import { BuildingMesh } from '@/components/viewer3d/BuildingMesh';
+import { BuildingCanvas } from '@/components/viewer3d/BuildingCanvas';
 import { HousePlan } from '@/types/plan';
+
+beforeAll(() => {
+  global.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as any;
+});
 
 describe('ThreeDViewer Component', () => {
   const mockPlan: HousePlan = {
@@ -60,5 +69,13 @@ describe('ThreeDViewer Component', () => {
       expect(element.type).toBe('group');
       expect((element.props as { position?: number[] }).position).toEqual([-7.5, 0, -10]);
     }
+  });
+
+  it('should export BuildingCanvas component and return valid element', () => {
+    expect(BuildingCanvas).toBeDefined();
+    expect(typeof BuildingCanvas).toBe('function');
+    const element = BuildingCanvas({ plan: mockPlan, wireframe: false });
+    expect(element).toBeDefined();
+    expect(React.isValidElement(element)).toBe(true);
   });
 });
