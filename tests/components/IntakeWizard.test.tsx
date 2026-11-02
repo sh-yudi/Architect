@@ -1,0 +1,175 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, fireEvent, waitFor } from '@testing-library/react';
+import React from 'react';
+import { IntakeWizard } from '@/components/wizard/IntakeWizard';
+import StartPage from '@/app/start/page';
+
+const mockPush = vi.fn();
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: mockPush,
+  }),
+}));
+
+describe('IntakeWizard Component', () => {
+  it('should render step 1 (Plot Details) initially and allow entering dimensions', () => {
+    const { getByLabelText, getByText } = render(<IntakeWizard onSubmit={vi.fn()} />);
+
+    expect(getByText('Step 1 of 6: Plot Details')).toBeDefined();
+    const widthInput = getByLabelText('Plot Width (ft)') as HTMLInputElement;
+    fireEvent.change(widthInput, { target: { value: '35' } });
+    expect(widthInput.value).toBe('35');
+
+    const lengthInput = getByLabelText('Plot Length (ft)') as HTMLInputElement;
+    fireEvent.change(lengthInput, { target: { value: '55' } });
+    expect(lengthInput.value).toBe('55');
+  });
+
+  it('should navigate through all 6 steps and allow updating inputs', () => {
+    const { getByText, getByLabelText } = render(<IntakeWizard onSubmit={vi.fn()} />);
+
+    // Step 1 -> Step 2
+    expect(getByText('Step 1 of 6: Plot Details')).toBeDefined();
+    fireEvent.click(getByText(/Continue/));
+
+    // Step 2: House Requirements
+    expect(getByText('Step 2 of 6: House Requirements')).toBeDefined();
+    expect(getByText('House Rooms & Structure')).toBeDefined();
+    const bedroomsInput = getByLabelText('Bedrooms') as HTMLInputElement;
+    fireEvent.change(bedroomsInput, { target: { value: '4' } });
+    expect(bedroomsInput.value).toBe('4');
+    fireEvent.click(getByText(/Continue/));
+
+    // Step 3: Lifestyle Preferences
+    expect(getByText('Step 3 of 6: Lifestyle Preferences')).toBeDefined();
+    expect(getByText('Façade & Style')).toBeDefined();
+    const styleSelect = getByLabelText('Architectural Elevation Style') as HTMLSelectElement;
+    fireEvent.change(styleSelect, { target: { value: 'Traditional' } });
+    expect(styleSelect.value).toBe('Traditional');
+    fireEvent.click(getByText(/Continue/));
+
+    // Step 4: Budget & Materials
+    expect(getByText('Step 4 of 6: Budget & Materials')).toBeDefined();
+    expect(getByText('Budget & Materials')).toBeDefined();
+    const budgetSelect = getByLabelText('Target Budget Range') as HTMLSelectElement;
+    fireEvent.change(budgetSelect, { target: { value: '40-60L' } });
+    expect(budgetSelect.value).toBe('40-60L');
+    fireEvent.click(getByText(/Continue/));
+
+    // Step 5: Authority & Legal
+    expect(getByText('Step 5 of 6: Authority & Legal')).toBeDefined();
+    expect(getByText('Municipal Approval Information')).toBeDefined();
+    const ownerInput = getByLabelText('Owner Full Name (on Registry)') as HTMLInputElement;
+    fireEvent.change(ownerInput, { target: { value: 'Rajesh Kumar' } });
+    expect(ownerInput.value).toBe('Rajesh Kumar');
+    fireEvent.click(getByText(/Continue/));
+
+    // Step 6: Review & Generate
+    expect(getByText('Step 6 of 6: Review & Generate')).toBeDefined();
+    expect(getByText('Review & Generate Blueprint')).toBeDefined();
+    expect(getByText(/Traditional/)).toBeDefined();
+  });
+
+  it('should navigate backward when Back button is clicked', () => {
+    const { getByText } = render(<IntakeWizard onSubmit={vi.fn()} />);
+
+    expect(getByText('Step 1 of 6: Plot Details')).toBeDefined();
+    fireEvent.click(getByText(/Continue/));
+    expect(getByText('Step 2 of 6: House Requirements')).toBeDefined();
+
+    fireEvent.click(getByText(/Back/));
+    expect(getByText('Step 1 of 6: Plot Details')).toBeDefined();
+  });
+
+  it('should submit form data when Generate button is clicked on Step 6', () => {
+    const handleSubmit = vi.fn();
+    const { getByText, getByLabelText } = render(<IntakeWizard onSubmit={handleSubmit} />);
+
+    // Change plot width on step 1
+    const widthInput = getByLabelText('Plot Width (ft)') as HTMLInputElement;
+    fireEvent.change(widthInput, { target: { value: '40' } });
+
+    // Advance to step 6
+    for (let i = 0; i < 5; i++) {
+      fireEvent.click(getByText(/Continue/));
+    }
+
+    expect(getByText('Step 6 of 6: Review & Generate')).toBeDefined();
+    const generateBtn = getByText('Generate Complete House Plan Package');
+    fireEvent.click(generateBtn);
+
+    expect(handleSubmit).toHaveBeenCalledTimes(1);
+    const submittedData = handleSubmit.mock.calls[0][0];
+    expect(submittedData.plot.width).toBe(40);
+  });
+});
+
+describe('StartPage Component', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sessionStorage.clear();
+  });
+
+  it('should render the start page with header and IntakeWizard', () => {
+    const { getByText } = render(<StartPage />);
+    expect(getByText('Custom House Plan Generator')).toBeDefined();
+    expect(getByText('Step 1 of 6: Plot Details')).toBeDefined();
+  });
+
+  it('should call /api/generate-plan and navigate to project page on successful submission', async () => {
+    const mockPlan = { plot: { width: 30, length: 45 } };
+    const globalFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        projectId: 'test-project-123',
+        plan: mockPlan,
+      }),
+    });
+    vi.stubGlobal('fetch', globalFetch);
+
+    const { getByText } = render(<StartPage />);
+
+    // Navigate to step 6
+    for (let i = 0; i < 5; i++) {
+      fireEvent.click(getByText(/Continue/));
+    }
+
+    const generateBtn = getByText('Generate Complete House Plan Package');
+    fireEvent.click(generateBtn);
+
+    await waitFor(() => {
+      expect(globalFetch).toHaveBeenCalledWith('/api/generate-plan', expect.objectContaining({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      }));
+    });
+
+    await waitFor(() => {
+      expect(sessionStorage.getItem('plan_test-project-123')).toBe(JSON.stringify(mockPlan));
+      expect(mockPush).toHaveBeenCalledWith('/projects/test-project-123');
+    });
+  });
+
+  it('should handle API failure gracefully', async () => {
+    const alertMock = vi.fn();
+    vi.stubGlobal('alert', alertMock);
+    const consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network error')));
+
+    const { getByText } = render(<StartPage />);
+
+    for (let i = 0; i < 5; i++) {
+      fireEvent.click(getByText(/Continue/));
+    }
+
+    const generateBtn = getByText('Generate Complete House Plan Package');
+    fireEvent.click(generateBtn);
+
+    await waitFor(() => {
+      expect(alertMock).toHaveBeenCalledWith('Error generating plan. Please try again.');
+    });
+
+    consoleErrorMock.mockRestore();
+  });
+});
