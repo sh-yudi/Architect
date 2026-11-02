@@ -17,15 +17,16 @@ export default function StartPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
-      const data = await res.json();
-      if (data.projectId) {
-        sessionStorage.setItem(`plan_${data.projectId}`, JSON.stringify(data.plan));
-        sessionStorage.setItem(`form_${data.projectId}`, JSON.stringify(formData));
-        router.push(`/projects/${data.projectId}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.projectId) {
+        throw new Error(data.error || 'Failed to generate plan. Please try again.');
       }
-    } catch (e) {
+      sessionStorage.setItem(`plan_${data.projectId}`, JSON.stringify(data.plan));
+      sessionStorage.setItem(`form_${data.projectId}`, JSON.stringify(formData));
+      router.push(`/projects/${data.projectId}`);
+    } catch (e: any) {
       console.error(e);
-      alert('Error generating plan. Please try again.');
+      alert(e?.message || 'Failed to generate plan. Please try again.');
     } finally {
       setLoading(false);
     }

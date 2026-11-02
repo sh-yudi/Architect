@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { IntakeWizard } from '@/components/wizard/IntakeWizard';
@@ -110,6 +110,10 @@ describe('StartPage Component', () => {
     sessionStorage.clear();
   });
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('should render the start page with header and IntakeWizard', () => {
     const { getByText } = render(<StartPage />);
     expect(getByText('Custom House Plan Generator')).toBeDefined();
@@ -150,12 +154,16 @@ describe('StartPage Component', () => {
     });
   });
 
-  it('should handle API failure gracefully', async () => {
+  it('should handle API HTTP error with error message from response', async () => {
     const alertMock = vi.fn();
     vi.stubGlobal('alert', alertMock);
     const consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network error')));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: 'Invalid plot dimensions provided' }),
+    }));
 
     const { getByText } = render(<StartPage />);
 
@@ -167,7 +175,57 @@ describe('StartPage Component', () => {
     fireEvent.click(generateBtn);
 
     await waitFor(() => {
-      expect(alertMock).toHaveBeenCalledWith('Error generating plan. Please try again.');
+      expect(alertMock).toHaveBeenCalledWith('Invalid plot dimensions provided');
+    });
+
+    consoleErrorMock.mockRestore();
+  });
+
+  it('should handle API failure when projectId is missing with default fallback message', async () => {
+    const alertMock = vi.fn();
+    vi.stubGlobal('alert', alertMock);
+    const consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({}),
+    }));
+
+    const { getByText } = render(<StartPage />);
+
+    for (let i = 0; i < 5; i++) {
+      fireEvent.click(getByText(/Continue/));
+    }
+
+    const generateBtn = getByText('Generate Complete House Plan Package');
+    fireEvent.click(generateBtn);
+
+    await waitFor(() => {
+      expect(alertMock).toHaveBeenCalledWith('Failed to generate plan. Please try again.');
+    });
+
+    consoleErrorMock.mockRestore();
+  });
+
+  it('should handle network failure gracefully', async () => {
+    const alertMock = vi.fn();
+    vi.stubGlobal('alert', alertMock);
+    const consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network disconnected')));
+
+    const { getByText } = render(<StartPage />);
+
+    for (let i = 0; i < 5; i++) {
+      fireEvent.click(getByText(/Continue/));
+    }
+
+    const generateBtn = getByText('Generate Complete House Plan Package');
+    fireEvent.click(generateBtn);
+
+    await waitFor(() => {
+      expect(alertMock).toHaveBeenCalledWith('Network disconnected');
     });
 
     consoleErrorMock.mockRestore();
