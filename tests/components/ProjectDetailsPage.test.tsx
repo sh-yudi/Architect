@@ -5,8 +5,9 @@ import ProjectDetailsPage from '@/app/projects/[id]/page';
 import { HousePlan } from '@/types/plan';
 import { WizardFormData } from '@/types/wizard';
 
+let mockParams: { id?: string | string[] } = { id: 'test-123' };
 vi.mock('next/navigation', () => ({
-  useParams: () => ({ id: 'test-123' }),
+  useParams: () => mockParams,
 }));
 
 describe('ProjectDetailsPage Component', () => {
@@ -89,6 +90,7 @@ describe('ProjectDetailsPage Component', () => {
   };
 
   beforeEach(() => {
+    mockParams = { id: 'test-123' };
     sessionStorage.clear();
     vi.restoreAllMocks();
 
@@ -102,9 +104,21 @@ describe('ProjectDetailsPage Component', () => {
     sessionStorage.clear();
   });
 
-  it('should render loading state when plan is not in sessionStorage', () => {
+  it('should render loading state while route params are resolving', () => {
+    mockParams = { id: '' };
     const { getByText } = render(<ProjectDetailsPage />);
     expect(getByText(/Loading Architectural Blueprint/)).toBeDefined();
+  });
+
+  it('should render empty state with link to /start when plan is not found in sessionStorage', () => {
+    mockParams = { id: 'test-123' };
+    const { getByText, getByRole } = render(<ProjectDetailsPage />);
+    expect(getByText('Blueprint Not Found')).toBeDefined();
+    expect(
+      getByText(/No active plan found for this session\. Please create a new house plan\./)
+    ).toBeDefined();
+    const link = getByRole('link', { name: /Create New House Plan/i });
+    expect(link.getAttribute('href')).toBe('/start');
   });
 
   it('should render project header and 2D floor plans when plan is loaded', () => {
