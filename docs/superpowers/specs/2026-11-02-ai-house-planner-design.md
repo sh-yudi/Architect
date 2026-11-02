@@ -496,10 +496,57 @@ Each authority has a form template (PDF template with fillable fields). The engi
 
 ---
 
-## 15. Open Questions (for implementation)
+## 15. Resolved Decisions (formerly Open Questions)
 
-1. **Gemini structured output:** Use `responseSchema` / JSON mode to enforce `HousePlan` schema — need to validate reliability with complex plans
-2. **3D model quality:** Three.js procedural generation from room JSON — may need fallback to pre-designed 3D templates for complex facades
-3. **Regulatory form templates:** GDA forms need to be procured as fillable PDFs — confirm availability of official digital versions
-4. **Material rate database:** Initial rates to be seeded manually per city; plan for quarterly update mechanism
-5. **PDF generation at scale:** Puppeteer is memory-intensive — consider moving to worker queue (BullMQ/Cloud Tasks) for concurrent plan generation
+### 1. Gemini Structured Output
+Use `responseJsonSchema` from `@google/genai` SDK with `responseMimeType: "application/json"`. The SDK **guarantees** `response.text` is valid JSON matching the schema. Add a **Zod validator** as a secondary safety net. If Zod fails (rare edge case), retry once with a corrective prompt appended.
+
+```typescript
+// config block in every plan generation call
+config: {
+  responseMimeType: "application/json",
+  responseJsonSchema: housePlanSchema, // Type.OBJECT tree defined in lib/schemas/housePlan.ts
+}
+```
+
+### 2. 3D Model Quality
+**Two-layer approach:**
+- **Layer 1 (Procedural):** Walls, floors, slabs generated from room JSON using `BoxGeometry` + `ExtrudeGeometry`. Door/window cutouts via `three-bvh-csg` Boolean subtraction.
+- **Layer 2 (Facade Templates):** 5 pre-built GLB asset kits (Modern / Traditional / Contemporary / Colonial / Farmhouse). Roof profile, window frames, entrance, balcony railing loaded per style selection.
+- Merge static meshes with `BufferGeometryUtils.mergeBufferGeometries()` to keep draw calls under 20.
+
+### 3. Regulatory Forms (GDA / UPOBPAS)
+GDA has **no offline PDF forms** — approval is fully online via [upobpas.in](https://upobpas.in) using AutoDCR CAD scrutiny. Revised output:
+- Export floor plans as **DXF** (via `dxf-writer` npm) — UPOBPAS accepts DXF/DWG uploads
+- Generate **affidavit + owner declaration** as pre-filled PDF (user prints, signs, notarizes)
+- Generate **fee calculation sheet** from GDA rate schedule
+- Provide **step-by-step UPOBPAS submission guide** with screenshots
+- Paid tier connects user to an empanelled **Licensed Technical Person (LTP)** who submits to UPOBPAS on their behalf — this is the natural upsell trigger.
+
+### 4. Material Rate Database
+**Seed data** (city-wise rates from market research, Q4 2026):
+
+| City | Cement/bag | Steel Fe500D/kg | Brick/pc | Civil labour/sqft |
+|---|---|---|---|---|
+| Delhi/NCR | ₹370 | ₹62 | ₹7.50 | ₹420 |
+| Mumbai | ₹405 | ₹67 | ₹9.00 | ₹520 |
+| Bengaluru | ₹390 | ₹64 | ₹8.00 | ₹480 |
+| Kolkata | ₹365 | ₹62 | ₹7.00 | ₹380 |
+| Chennai | ₹385 | ₹63 | ₹8.25 | ₹440 |
+
+**Quarterly update mechanism:** Cloud Scheduler triggers a Cloud Function every 3 months. Function scrapes IndiaMART/BuildHQ via Gemini web parsing → diffs against Firestore → auto-updates if change ≤5%, flags for admin review if >5%. Budget output always shows rate date + ±15% disclaimer.
+
+### 5. PDF Generation at Scale
+**Phase 1 (MVP — up to 100 plans/day):** BullMQ + Upstash Redis (serverless, free tier).
+- One pooled Puppeteer browser per worker (never launch per job)
+- `browser.newPage()` per job → render → `page.pdf()` returns Buffer → upload to GCS → `page.close()`
+- Restart browser every 50 PDFs to combat memory leaks
+- Firestore listener gives user real-time status updates
+
+**Phase 2 (Scale — 100+ plans/day):** Migrate to Cloud Tasks + Cloud Run (auto-scaling containers, GCP-native, no Redis to manage).
+
+| Volume | Stack | Cost |
+|---|---|---|
+| 0–100 plans/day | BullMQ + Upstash Redis | ~\$0–\$5/month |
+| 100–1000 plans/day | Cloud Tasks + Cloud Run | ~\$20–\$100/month |
+| 1000+ plans/day | Browserless cloud cluster | ~\$200+/month |
