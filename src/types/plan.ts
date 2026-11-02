@@ -95,6 +95,7 @@ export interface RegulatorySummary {
 }
 
 export interface HousePlan {
+  customWishlist?: string;
   plot: {
     width: number;
     length: number;

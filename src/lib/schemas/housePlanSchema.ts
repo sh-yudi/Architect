@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 export const housePlanZodSchema = z.object({
+  customWishlist: z.string().optional().default(''),
   plot: z.object({
     width: z.number().positive(),
     length: z.number().positive(),
@@ -15,7 +16,7 @@ export const housePlanZodSchema = z.object({
   }),
   floors: z.array(
     z.object({
-      level: z.number().int().nonnegative(),
+      level: z.number().int(),
       floorName: z.string(),
       rooms: z.array(
         z.object({
@@ -115,6 +116,7 @@ export const housePlanZodSchema = z.object({
 });
 
 export const wizardFormSchema = z.object({
+  customWishlist: z.string().optional().default(''),
   plot: z.object({
     width: z.number().positive(),
     length: z.number().positive(),

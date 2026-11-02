@@ -188,7 +188,7 @@ export default function ProjectDetailsPage() {
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
               {plan.plot.width}&apos; × {plan.plot.length}&apos; ({plan.plot.area} sq ft) &bull;{' '}
-              {plan.facade.style} Façade &bull; Ghaziabad (GDA)
+              {plan.facade.style} Façade &bull; {plan.floors.length} Levels &bull; Ghaziabad (GDA)
             </p>
           </div>
           <div className="flex gap-2">
@@ -201,6 +201,23 @@ export default function ProjectDetailsPage() {
             </button>
           </div>
         </div>
+
+        {/* Custom Wishlist / Client Vision Banner */}
+        {(plan.customWishlist || formData?.customWishlist) && (
+          <div className="bg-sky-50/70 border border-sky-200 rounded-2xl p-4 sm:p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-xs font-bold uppercase tracking-wider text-sky-800">
+                Client&apos;s Custom Architectural Vision &amp; Requirements
+              </span>
+              <span className="text-[10px] bg-sky-200/60 text-sky-800 font-semibold px-2 py-0.5 rounded-full">
+                Custom Tailored
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-700 italic leading-relaxed">
+              &ldquo;{plan.customWishlist || formData?.customWishlist}&rdquo;
+            </p>
+          </div>
+        )}
 
         {/* Tab Navigation */}
         <div className="flex border-b border-slate-200 gap-6 text-sm font-semibold text-slate-600">

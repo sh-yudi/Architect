@@ -102,6 +102,54 @@ describe('IntakeWizard Component', () => {
     const submittedData = handleSubmit.mock.calls[0][0];
     expect(submittedData.plot.width).toBe(40);
   });
+
+  it('should capture custom wishlist and allow dynamic multi-floor selection up to 6+ floors', () => {
+    const handleSubmit = vi.fn();
+    const { getByText, getByLabelText } = render(<IntakeWizard onSubmit={handleSubmit} />);
+
+    // Enter detailed vision in Step 1
+    const wishlistArea = getByLabelText(/Describe Your Dream House in Your Own Words/) as HTMLTextAreaElement;
+    fireEvent.change(wishlistArea, {
+      target: { value: 'Double height living room facing North-East with rooftop pool and modern kitchen.' },
+    });
+    expect(wishlistArea.value).toContain('Double height living room');
+
+    fireEvent.click(getByText(/Continue/));
+
+    // Step 2: Select 4 floors via quick preset
+    expect(getByText('G + 3')).toBeDefined();
+    fireEvent.click(getByText('G + 3'));
+
+    // Or type custom floors
+    const floorsInput = getByLabelText('Number of Floors') as HTMLInputElement;
+    expect(floorsInput.value).toBe('4');
+
+    fireEvent.change(floorsInput, { target: { value: '5' } });
+    expect(floorsInput.value).toBe('5');
+
+    // Toggle basement checkbox
+    const basementCheckbox = getByLabelText('Basement Floor') as HTMLInputElement;
+    fireEvent.click(basementCheckbox);
+    expect(basementCheckbox.checked).toBe(true);
+
+    // Advance to step 6
+    for (let i = 0; i < 4; i++) {
+      fireEvent.click(getByText(/Continue/));
+    }
+
+    expect(getByText('Step 6 of 6: Review & Generate')).toBeDefined();
+    expect(getByText(/Double height living room/)).toBeDefined();
+    expect(getByText(/Ground \+ 4 \(5 Floors\) \+ Basement/)).toBeDefined();
+
+    const generateBtn = getByText('Generate Complete House Plan Package');
+    fireEvent.click(generateBtn);
+
+    expect(handleSubmit).toHaveBeenCalledTimes(1);
+    const submittedData = handleSubmit.mock.calls[0][0];
+    expect(submittedData.customWishlist).toBe('Double height living room facing North-East with rooftop pool and modern kitchen.');
+    expect(submittedData.requirements.floors).toBe(5);
+    expect(submittedData.requirements.hasBasement).toBe(true);
+  });
 });
 
 describe('StartPage Component', () => {

@@ -229,4 +229,50 @@ describe('Gemini House Plan Generator', () => {
 
     vi.doUnmock('@google/genai');
   });
+
+  it('should generate dynamic multi-floor architectural plans for 4+ floors with basement and custom wishlist', async () => {
+    const multiFloorData: WizardFormData = {
+      ...mockWizardData,
+      customWishlist: 'Rooftop infinity terrace with double height formal drawing room and basement gym',
+      requirements: {
+        ...mockWizardData.requirements,
+        floors: 4,
+        bedrooms: 6,
+        bathrooms: 6,
+        hasBasement: true,
+      },
+    };
+
+    // Verify prompt builder injects custom wishlist and floor requests
+    const rules = getRegulatoryRules('GDA');
+    const prompt = buildHousePlanPrompt(multiFloorData, rules);
+    expect(prompt).toContain("CLIENT'S DETAILED VISION & CUSTOM HOUSE REQUIREMENTS");
+    expect(prompt).toContain('Rooftop infinity terrace');
+    expect(prompt).toContain('Number of floors: 4 floors');
+
+    // Generate deterministic plan with 4 floors + basement
+    const plan = await generateHousePlan(multiFloorData, undefined);
+    // 4 floors + 1 basement = 5 floors total
+    expect(plan.floors.length).toBe(5);
+    expect(plan.floors[0].floorName).toBe('Basement Floor Plan');
+    expect(plan.floors[1].floorName).toBe('Ground Floor Plan');
+    expect(plan.floors[2].floorName).toBe('First Floor Plan');
+    expect(plan.floors[3].floorName).toBe('Second Floor Plan');
+    expect(plan.floors[4].floorName).toBe('Top Floor (Level 3)');
+    expect(plan.customWishlist).toBe('Rooftop infinity terrace with double height formal drawing room and basement gym');
+
+    // Verify all rooms have doors, windows, and valid coordinates
+    for (const floor of plan.floors) {
+      expect(floor.rooms.length).toBeGreaterThanOrEqual(1);
+      for (const room of floor.rooms) {
+        expect(room.width).toBeGreaterThan(0);
+        expect(room.length).toBeGreaterThan(0);
+        expect(room.doors).toBeDefined();
+        expect(room.windows).toBeDefined();
+      }
+    }
+
+    const validation = housePlanZodSchema.safeParse(plan);
+    expect(validation.success).toBe(true);
+  });
 });
