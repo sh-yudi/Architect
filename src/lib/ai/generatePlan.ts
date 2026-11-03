@@ -29,6 +29,8 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
     originX,
     originY,
     floorsCount,
+    bedroomsCount,
+    bathroomsCount,
     hasPooja,
     hasParking,
     wishlist,
@@ -37,17 +39,33 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
   const floors: FloorPlan[] = [];
   const lowerWish = wishlist.toLowerCase();
 
-  // Dimensions subdivision
-  // Grid layout: divide buildable area into 2 or 3 longitudinal zones
-  const leftColWidth = Math.max(Math.floor(buildableWidth * 0.48), 10);
-  const rightColWidth = Math.max(buildableWidth - leftColWidth, 10);
+  // Keyword extraction from user wishlist
+  const wantsGym = lowerWish.includes('gym') || lowerWish.includes('fitness') || lowerWish.includes('workout');
+  const wantsTheatre = lowerWish.includes('theatre') || lowerWish.includes('theater') || lowerWish.includes('cinema') || lowerWish.includes('media');
+  const wantsStudy = lowerWish.includes('study') || lowerWish.includes('office') || lowerWish.includes('library') || lowerWish.includes('work');
+  const wantsOpenKitchen = lowerWish.includes('open') || lowerWish.includes('island');
 
-  const frontZoneLength = Math.max(Math.floor(buildableLength * 0.36), 12);
-  const midZoneLength = Math.max(Math.floor(buildableLength * 0.32), 10);
-  const rearZoneLength = Math.max(buildableLength - frontZoneLength - midZoneLength, 10);
+  // Exact zone calculation ensuring sum(lengths) === buildableLength with ZERO overflow or overhang
+  let frontZoneLength = Math.max(Math.floor(buildableLength * 0.36), 8);
+  let midZoneLength = Math.max(Math.floor(buildableLength * 0.32), 8);
+  let rearZoneLength = buildableLength - frontZoneLength - midZoneLength;
+
+  if (rearZoneLength < 8) {
+    frontZoneLength = Math.floor(buildableLength * 0.36);
+    midZoneLength = Math.floor(buildableLength * 0.32);
+    rearZoneLength = buildableLength - frontZoneLength - midZoneLength;
+  }
+
+  // Exact column width calculation ensuring sum(widths) === buildableWidth with ZERO overflow
+  const isNarrowPlot = buildableWidth < 22;
+  const leftColWidth = isNarrowPlot ? Math.floor(buildableWidth * 0.62) : Math.floor(buildableWidth * 0.52);
+  const rightColWidth = buildableWidth - leftColWidth;
 
   // 1. BASEMENT (If requested or mentioned in wishlist)
   if (config.hasBasement || lowerWish.includes('basement')) {
+    const basementRearW1 = Math.floor(buildableWidth * 0.5);
+    const basementRearW2 = buildableWidth - basementRearW1;
+
     const basementRooms: Room[] = [
       {
         id: 'b-1',
@@ -74,7 +92,7 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
         name: 'Storage & Mechanical Room',
         x: originX,
         y: originY + frontZoneLength + midZoneLength,
-        width: Math.floor(buildableWidth * 0.5),
+        width: basementRearW1,
         length: rearZoneLength,
         doors: [{ id: 'bd-3', wall: 'top', offset: 2, width: 2.5 }],
         windows: [],
@@ -82,9 +100,9 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
       {
         id: 'b-4',
         name: 'Basement Powder Toilet',
-        x: originX + Math.floor(buildableWidth * 0.5),
+        x: originX + basementRearW1,
         y: originY + frontZoneLength + midZoneLength,
-        width: buildableWidth - Math.floor(buildableWidth * 0.5),
+        width: basementRearW2,
         length: rearZoneLength,
         doors: [{ id: 'bd-4', wall: 'top', offset: 2, width: 2.5 }],
         windows: [],
@@ -141,66 +159,75 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
     });
   }
 
-  // Mid zone: Dining Hall + Modular Kitchen + Pooja + Staircase
-  const kitchenWidth = Math.max(Math.floor(buildableWidth * 0.38), 9);
-  const poojaWidth = hasPooja ? Math.min(Math.max(Math.floor(buildableWidth * 0.2), 5), 7) : 0;
-  const diningWidth = buildableWidth - kitchenWidth - poojaWidth;
-
+  // Mid zone: Dining Hall + Modular Kitchen + Pooja
   groundRooms.push({
     id: 'g-dining',
     name: 'Central Dining Hall',
     x: originX,
     y: originY + frontZoneLength,
-    width: diningWidth,
+    width: leftColWidth,
     length: midZoneLength,
     doors: [{ id: 'gd-dining', wall: 'right', offset: 2, width: 3.0 }],
     windows: [{ id: 'gw-dining', wall: 'left', offset: 3, width: 4.0 }],
   });
 
-  groundRooms.push({
-    id: 'g-kitchen',
-    name: 'Modular Kitchen & Pantry',
-    x: originX + diningWidth,
-    y: originY + frontZoneLength,
-    width: kitchenWidth,
-    length: midZoneLength,
-    doors: [{ id: 'gd-kitchen', wall: 'left', offset: 2, width: 3.0 }],
-    windows: [{ id: 'gw-kitchen', wall: 'right', offset: 2, width: 4.0 }],
-  });
+  if (hasPooja && rightColWidth >= 10) {
+    const poojaWidth = Math.min(Math.max(Math.floor(rightColWidth * 0.35), 4), 6);
+    const kitchenWidth = rightColWidth - poojaWidth;
 
-  if (hasPooja) {
+    groundRooms.push({
+      id: 'g-kitchen',
+      name: wantsOpenKitchen ? 'Open Modular Kitchen & Island' : 'Modular Kitchen & Pantry',
+      x: originX + leftColWidth,
+      y: originY + frontZoneLength,
+      width: kitchenWidth,
+      length: midZoneLength,
+      doors: [{ id: 'gd-kitchen', wall: 'left', offset: 2, width: 3.0 }],
+      windows: [{ id: 'gw-kitchen', wall: 'right', offset: 2, width: 4.0 }],
+    });
+
     groundRooms.push({
       id: 'g-pooja',
       name: 'Pooja Room (Mandir)',
-      x: originX + diningWidth + kitchenWidth,
+      x: originX + leftColWidth + kitchenWidth,
       y: originY + frontZoneLength,
       width: poojaWidth,
       length: midZoneLength,
       doors: [{ id: 'gd-pooja', wall: 'left', offset: 1.5, width: 2.5 }],
       windows: [{ id: 'gw-pooja', wall: 'top', offset: 1.5, width: 2.5 }],
     });
+  } else {
+    groundRooms.push({
+      id: 'g-kitchen',
+      name: wantsOpenKitchen ? 'Open Modular Kitchen & Island' : 'Modular Kitchen & Pantry',
+      x: originX + leftColWidth,
+      y: originY + frontZoneLength,
+      width: rightColWidth,
+      length: midZoneLength,
+      doors: [{ id: 'gd-kitchen', wall: 'left', offset: 2, width: 3.0 }],
+      windows: [{ id: 'gw-kitchen', wall: 'right', offset: 2, width: 4.0 }],
+    });
   }
 
-  // Rear zone: Ground Floor Bedroom + Attached Bath + Common Toilet + Staircase Lobby
-  const stairWidth = Math.min(Math.max(Math.floor(buildableWidth * 0.28), 7), 9);
-  const bathWidth = Math.min(Math.max(Math.floor(buildableWidth * 0.22), 5), 7);
-  const bedWidth = buildableWidth - stairWidth - bathWidth;
-
+  // Rear zone: Ground Floor Bedroom + Attached Bath + Staircase Lobby
   groundRooms.push({
     id: 'g-bed1',
     name: 'Ground Bedroom (Guest/Parents)',
     x: originX,
     y: originY + frontZoneLength + midZoneLength,
-    width: bedWidth,
+    width: leftColWidth,
     length: rearZoneLength,
     doors: [{ id: 'gd-bed1', wall: 'top', offset: 2, width: 3.0 }],
     windows: [{ id: 'gw-bed1', wall: 'bottom', offset: 3, width: 4.0 }],
   });
 
+  const bathWidth = Math.min(Math.max(Math.floor(rightColWidth * 0.44), 5), 7);
+  const stairWidth = rightColWidth - bathWidth;
+
   groundRooms.push({
     id: 'g-bath1',
     name: 'Attached Bathroom & Toilet',
-    x: originX + bedWidth,
+    x: originX + leftColWidth,
     y: originY + frontZoneLength + midZoneLength,
     width: bathWidth,
     length: rearZoneLength,
@@ -211,7 +238,7 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
   groundRooms.push({
     id: 'g-stair',
     name: 'Staircase Lobby & Powder Room',
-    x: originX + bedWidth + bathWidth,
+    x: originX + leftColWidth + bathWidth,
     y: originY + frontZoneLength + midZoneLength,
     width: stairWidth,
     length: rearZoneLength,
@@ -223,13 +250,16 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
 
   // 3. FIRST FLOOR (If floors >= 2)
   if (floorsCount >= 2) {
+    const fBalconyLength = Math.max(Math.floor(frontZoneLength * 0.45), 5);
+    const fBathLength = frontZoneLength - fBalconyLength;
+
     const firstRooms: Room[] = [
       {
         id: 'f-master',
         name: 'Master Bedroom Suite',
         x: originX,
         y: originY,
-        width: Math.floor(buildableWidth * 0.58),
+        width: leftColWidth,
         length: frontZoneLength,
         doors: [{ id: 'fd-master', wall: 'bottom', offset: 3, width: 3.0 }],
         windows: [
@@ -240,20 +270,20 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
       {
         id: 'f-balcony',
         name: 'Front Sit-out Balcony',
-        x: originX + Math.floor(buildableWidth * 0.58),
+        x: originX + leftColWidth,
         y: originY,
-        width: buildableWidth - Math.floor(buildableWidth * 0.58),
-        length: Math.max(Math.floor(frontZoneLength * 0.5), 6),
+        width: rightColWidth,
+        length: fBalconyLength,
         doors: [{ id: 'fd-balc', wall: 'left', offset: 1.5, width: 3.0 }],
         windows: [],
       },
       {
         id: 'f-mbath',
         name: 'Walk-in Dress & Master Bath',
-        x: originX + Math.floor(buildableWidth * 0.58),
-        y: originY + Math.max(Math.floor(frontZoneLength * 0.5), 6),
-        width: buildableWidth - Math.floor(buildableWidth * 0.58),
-        length: frontZoneLength - Math.max(Math.floor(frontZoneLength * 0.5), 6),
+        x: originX + leftColWidth,
+        y: originY + fBalconyLength,
+        width: rightColWidth,
+        length: fBathLength,
         doors: [{ id: 'fd-mbath', wall: 'left', offset: 2, width: 2.5 }],
         windows: [{ id: 'fw-mbath', wall: 'right', offset: 2, width: 3.0 }],
       },
@@ -262,7 +292,7 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
         name: 'Family Lounge & TV Lobby',
         x: originX,
         y: originY + frontZoneLength,
-        width: Math.floor(buildableWidth * 0.6),
+        width: leftColWidth,
         length: midZoneLength,
         doors: [{ id: 'fd-lounge', wall: 'right', offset: 2, width: 3.0 }],
         windows: [{ id: 'fw-lounge', wall: 'left', offset: 2, width: 4.0 }],
@@ -270,19 +300,19 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
       {
         id: 'f-bed2',
         name: "Kids' / Children Bedroom",
-        x: originX + Math.floor(buildableWidth * 0.6),
+        x: originX + leftColWidth,
         y: originY + frontZoneLength,
-        width: buildableWidth - Math.floor(buildableWidth * 0.6),
+        width: rightColWidth,
         length: midZoneLength,
         doors: [{ id: 'fd-bed2', wall: 'left', offset: 2, width: 3.0 }],
         windows: [{ id: 'fw-bed2', wall: 'right', offset: 3, width: 4.0 }],
       },
       {
         id: 'f-bed3',
-        name: 'Bedroom 3 (Guest Suite)',
+        name: bedroomsCount >= 3 ? 'Bedroom 3 (Guest Suite)' : wantsStudy ? 'Executive Study & Home Office' : 'Bedroom 3 (Guest Suite)',
         x: originX,
         y: originY + frontZoneLength + midZoneLength,
-        width: Math.floor(buildableWidth * 0.5),
+        width: leftColWidth,
         length: rearZoneLength,
         doors: [{ id: 'fd-bed3', wall: 'top', offset: 2, width: 3.0 }],
         windows: [{ id: 'fw-bed3', wall: 'bottom', offset: 3, width: 4.0 }],
@@ -290,9 +320,9 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
       {
         id: 'f-bath2',
         name: 'Attached Bathroom & Toilet',
-        x: originX + Math.floor(buildableWidth * 0.5),
+        x: originX + leftColWidth,
         y: originY + frontZoneLength + midZoneLength,
-        width: Math.floor(buildableWidth * 0.25),
+        width: bathWidth,
         length: rearZoneLength,
         doors: [{ id: 'fd-bath2', wall: 'left', offset: 2, width: 2.5 }],
         windows: [{ id: 'fw-bath2', wall: 'bottom', offset: 1.5, width: 2.5 }],
@@ -300,9 +330,9 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
       {
         id: 'f-stair',
         name: 'Staircase Core',
-        x: originX + Math.floor(buildableWidth * 0.75),
+        x: originX + leftColWidth + bathWidth,
         y: originY + frontZoneLength + midZoneLength,
-        width: buildableWidth - Math.floor(buildableWidth * 0.75),
+        width: stairWidth,
         length: rearZoneLength,
         doors: [{ id: 'fd-stair', wall: 'top', offset: 1.5, width: 3.0 }],
         windows: [{ id: 'fw-stair', wall: 'right', offset: 2, width: 3.0 }],
@@ -313,13 +343,15 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
 
   // 4. SECOND FLOOR (If floors >= 3)
   if (floorsCount >= 3) {
+    const sRoomName = wantsGym ? 'Fitness Gym & Yoga Room' : wantsTheatre ? 'Private Home Theatre & Media Hall' : 'Executive Study & Home Office';
+
     const secondRooms: Room[] = [
       {
         id: 's-office',
-        name: lowerWish.includes('gym') ? 'Fitness Gym & Yoga Room' : 'Executive Study & Home Office',
+        name: sRoomName,
         x: originX,
         y: originY,
-        width: Math.floor(buildableWidth * 0.55),
+        width: leftColWidth,
         length: frontZoneLength,
         doors: [{ id: 'sd-off', wall: 'bottom', offset: 3, width: 3.0 }],
         windows: [{ id: 'sw-off', wall: 'top', offset: 3, width: 5.0 }],
@@ -327,19 +359,19 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
       {
         id: 's-terrace',
         name: 'Open Sky Terrace Garden',
-        x: originX + Math.floor(buildableWidth * 0.55),
+        x: originX + leftColWidth,
         y: originY,
-        width: buildableWidth - Math.floor(buildableWidth * 0.55),
+        width: rightColWidth,
         length: frontZoneLength + midZoneLength,
         doors: [{ id: 'sd-terrace', wall: 'left', offset: 4, width: 3.0 }],
         windows: [],
       },
       {
         id: 's-bed4',
-        name: 'Guest Penthouse Bedroom',
+        name: bedroomsCount >= 4 ? 'Guest Penthouse Bedroom' : wantsTheatre ? 'Dolby Cinema Lounge' : 'Guest Penthouse Bedroom',
         x: originX,
         y: originY + frontZoneLength,
-        width: Math.floor(buildableWidth * 0.55),
+        width: leftColWidth,
         length: midZoneLength,
         doors: [{ id: 'sd-bed4', wall: 'top', offset: 2, width: 3.0 }],
         windows: [{ id: 'sw-bed4', wall: 'left', offset: 2, width: 4.0 }],
@@ -349,7 +381,7 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
         name: 'Terrace Bathroom & Powder',
         x: originX,
         y: originY + frontZoneLength + midZoneLength,
-        width: Math.floor(buildableWidth * 0.35),
+        width: bathWidth,
         length: rearZoneLength,
         doors: [{ id: 'sd-bath3', wall: 'top', offset: 2, width: 2.5 }],
         windows: [{ id: 'sw-bath3', wall: 'bottom', offset: 1.5, width: 2.5 }],
@@ -357,9 +389,9 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
       {
         id: 's-lounge',
         name: 'Pantry & Bar Counter',
-        x: originX + Math.floor(buildableWidth * 0.35),
+        x: originX + bathWidth,
         y: originY + frontZoneLength + midZoneLength,
-        width: Math.floor(buildableWidth * 0.35),
+        width: leftColWidth - bathWidth,
         length: rearZoneLength,
         doors: [{ id: 'sd-bar', wall: 'top', offset: 2, width: 2.5 }],
         windows: [{ id: 'sw-bar', wall: 'bottom', offset: 1.5, width: 3.0 }],
@@ -367,9 +399,9 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
       {
         id: 's-stair',
         name: 'Staircase Mumty & Overhead Tank',
-        x: originX + Math.floor(buildableWidth * 0.7),
+        x: originX + leftColWidth,
         y: originY + frontZoneLength + midZoneLength,
-        width: buildableWidth - Math.floor(buildableWidth * 0.7),
+        width: rightColWidth,
         length: rearZoneLength,
         doors: [{ id: 'sd-stair', wall: 'top', offset: 1.5, width: 3.0 }],
         windows: [{ id: 'sw-stair', wall: 'right', offset: 2, width: 3.0 }],
@@ -386,7 +418,7 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
         name: `Floor ${lvl} Master Apartment Suite`,
         x: originX,
         y: originY,
-        width: Math.floor(buildableWidth * 0.6),
+        width: leftColWidth,
         length: frontZoneLength + midZoneLength,
         doors: [{ id: `f${lvl}-d1`, wall: 'right', offset: 4, width: 3.0 }],
         windows: [{ id: `f${lvl}-w1`, wall: 'top', offset: 3, width: 5.0 }],
@@ -394,9 +426,9 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
       {
         id: `f${lvl}-balc`,
         name: `Floor ${lvl} Panoramic Balcony`,
-        x: originX + Math.floor(buildableWidth * 0.6),
+        x: originX + leftColWidth,
         y: originY,
-        width: buildableWidth - Math.floor(buildableWidth * 0.6),
+        width: rightColWidth,
         length: Math.max(Math.floor(frontZoneLength * 0.6), 6),
         doors: [{ id: `f${lvl}-d2`, wall: 'left', offset: 2, width: 3.0 }],
         windows: [],
@@ -404,9 +436,9 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
       {
         id: `f${lvl}-bath`,
         name: `Floor ${lvl} Attached Bathroom`,
-        x: originX + Math.floor(buildableWidth * 0.6),
+        x: originX + leftColWidth,
         y: originY + Math.max(Math.floor(frontZoneLength * 0.6), 6),
-        width: buildableWidth - Math.floor(buildableWidth * 0.6),
+        width: rightColWidth,
         length: frontZoneLength + midZoneLength - Math.max(Math.floor(frontZoneLength * 0.6), 6),
         doors: [{ id: `f${lvl}-d3`, wall: 'left', offset: 2, width: 2.5 }],
         windows: [{ id: `f${lvl}-w2`, wall: 'right', offset: 2, width: 3.0 }],
@@ -416,7 +448,7 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
         name: `Floor ${lvl} Multi-Purpose Living & Dining`,
         x: originX,
         y: originY + frontZoneLength + midZoneLength,
-        width: Math.floor(buildableWidth * 0.65),
+        width: leftColWidth,
         length: rearZoneLength,
         doors: [{ id: `f${lvl}-d4`, wall: 'top', offset: 3, width: 3.0 }],
         windows: [{ id: `f${lvl}-w3`, wall: 'bottom', offset: 3, width: 4.0 }],
@@ -424,9 +456,9 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
       {
         id: `f${lvl}-stair`,
         name: 'Staircase Tower',
-        x: originX + Math.floor(buildableWidth * 0.65),
+        x: originX + leftColWidth,
         y: originY + frontZoneLength + midZoneLength,
-        width: buildableWidth - Math.floor(buildableWidth * 0.65),
+        width: rightColWidth,
         length: rearZoneLength,
         doors: [{ id: `f${lvl}-d5`, wall: 'top', offset: 1.5, width: 3.0 }],
         windows: [{ id: `f${lvl}-w4`, wall: 'right', offset: 2, width: 3.0 }],

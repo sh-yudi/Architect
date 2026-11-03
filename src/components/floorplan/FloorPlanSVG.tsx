@@ -254,6 +254,105 @@ export const FloorPlanSVG: React.FC<FloorPlanSVGProps> = ({
               Plot Boundary (Front Facing North/East)
             </text>
 
+            {/* Setbacks & Buildable Envelope Visualization */}
+            {floor.rooms.length > 0 && (() => {
+              const minX = Math.min(...floor.rooms.map((r) => r.x));
+              const minY = Math.min(...floor.rooms.map((r) => r.y));
+              const maxX = Math.max(...floor.rooms.map((r) => r.x + r.width));
+              const maxY = Math.max(...floor.rooms.map((r) => r.y + r.length));
+
+              const frontSetbackFt = minY;
+              const rearSetbackFt = plotLength - maxY;
+              const leftSetbackFt = minX;
+              const rightSetbackFt = plotWidth - maxX;
+
+              return (
+                <g>
+                  {/* Front Setback Lawn Shading */}
+                  {frontSetbackFt > 0 && (
+                    <g>
+                      <rect
+                        x={padding}
+                        y={padding}
+                        width={plotWidth * scale}
+                        height={frontSetbackFt * scale}
+                        fill={isBlueprint ? 'rgba(56, 189, 248, 0.05)' : 'rgba(34, 197, 94, 0.08)'}
+                      />
+                      <text
+                        x={padding + (plotWidth * scale) / 2}
+                        y={padding + (frontSetbackFt * scale) / 2 + 3}
+                        textAnchor="middle"
+                        fill={isBlueprint ? '#38bdf8' : '#15803d'}
+                        fontSize="9"
+                        fontFamily="monospace"
+                        fontWeight="600"
+                        opacity={0.8}
+                      >
+                        FRONT SETBACK &amp; LAWN ({frontSetbackFt}&apos; REQ.)
+                      </text>
+                    </g>
+                  )}
+
+                  {/* Rear Setback Courtyard Shading */}
+                  {rearSetbackFt > 0 && (
+                    <g>
+                      <rect
+                        x={padding}
+                        y={padding + maxY * scale}
+                        width={plotWidth * scale}
+                        height={rearSetbackFt * scale}
+                        fill={isBlueprint ? 'rgba(56, 189, 248, 0.05)' : 'rgba(34, 197, 94, 0.08)'}
+                      />
+                      <text
+                        x={padding + (plotWidth * scale) / 2}
+                        y={padding + maxY * scale + (rearSetbackFt * scale) / 2 + 3}
+                        textAnchor="middle"
+                        fill={isBlueprint ? '#38bdf8' : '#15803d'}
+                        fontSize="9"
+                        fontFamily="monospace"
+                        fontWeight="600"
+                        opacity={0.8}
+                      >
+                        REAR SETBACK / GREEN COURTYARD ({Math.round(rearSetbackFt * 10) / 10}&apos; REQ.)
+                      </text>
+                    </g>
+                  )}
+
+                  {/* Side Passages Shading */}
+                  {leftSetbackFt > 0 && (
+                    <rect
+                      x={padding}
+                      y={padding + minY * scale}
+                      width={leftSetbackFt * scale}
+                      height={(maxY - minY) * scale}
+                      fill={isBlueprint ? 'rgba(56, 189, 248, 0.03)' : 'rgba(100, 116, 139, 0.05)'}
+                    />
+                  )}
+                  {rightSetbackFt > 0 && (
+                    <rect
+                      x={padding + maxX * scale}
+                      y={padding + minY * scale}
+                      width={rightSetbackFt * scale}
+                      height={(maxY - minY) * scale}
+                      fill={isBlueprint ? 'rgba(56, 189, 248, 0.03)' : 'rgba(100, 116, 139, 0.05)'}
+                    />
+                  )}
+
+                  {/* Buildable Envelope Border */}
+                  <rect
+                    x={padding + minX * scale}
+                    y={padding + minY * scale}
+                    width={(maxX - minX) * scale}
+                    height={(maxY - minY) * scale}
+                    fill="none"
+                    stroke={isBlueprint ? 'rgba(56, 189, 248, 0.4)' : 'rgba(217, 119, 6, 0.45)'}
+                    strokeWidth="1.2"
+                    strokeDasharray="4 3"
+                  />
+                </g>
+              );
+            })()}
+
             {/* Vastu Compass Rose / North Arrow in Top Right */}
             <g transform={`translate(${svgWidth - padding - 28}, ${padding + 18})`}>
               <circle

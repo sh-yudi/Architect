@@ -1,6 +1,7 @@
 import { FacingDirection } from './plan';
 
 export interface WizardFormData {
+  apiKey?: string;
   customWishlist?: string;
   plot: {
     width: number;

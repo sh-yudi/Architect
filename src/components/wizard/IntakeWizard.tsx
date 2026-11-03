@@ -612,6 +612,26 @@ export const IntakeWizard: React.FC<IntakeWizardProps> = ({ onSubmit }) => {
               />
             </div>
           </div>
+
+          <div className="pt-2 border-t border-slate-200/80">
+            <div className="flex justify-between items-center mb-1">
+              <label htmlFor="gemini-api-key" className="block text-xs font-semibold text-slate-700">
+                Google Gemini API Key (Optional)
+              </label>
+              <span className="text-[10px] text-slate-400">Leave blank for automatic rule engine</span>
+            </div>
+            <input
+              id="gemini-api-key"
+              type="password"
+              placeholder="AIzaSy... (optional for live AI generative architecture)"
+              value={formData.apiKey || ''}
+              onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
+              className="w-full rounded-lg border border-slate-300 p-2.5 text-xs font-mono focus:border-sky-500 focus:ring-1 focus:ring-sky-500 bg-white"
+            />
+            <p className="text-[11px] text-slate-500 mt-1">
+              If provided, Google Gemini AI will generate your custom architectural layouts directly from your prompt.
+            </p>
+          </div>
         </div>
       )}
 

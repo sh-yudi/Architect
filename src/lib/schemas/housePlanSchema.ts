@@ -116,6 +116,7 @@ export const housePlanZodSchema = z.object({
 });
 
 export const wizardFormSchema = z.object({
+  apiKey: z.string().optional(),
   customWishlist: z.string().optional().default(''),
   plot: z.object({
     width: z.number().positive(),

@@ -14,7 +14,8 @@ export async function POST(req: Request) {
     }
 
     const formData = result.data;
-    const plan = await generateHousePlan(formData);
+    const apiKey = formData.apiKey || process.env.GEMINI_API_KEY;
+    const plan = await generateHousePlan(formData, apiKey);
     const projectId = `proj_${Date.now()}`;
 
     return NextResponse.json({
