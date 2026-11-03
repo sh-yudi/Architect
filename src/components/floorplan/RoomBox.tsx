@@ -5,6 +5,8 @@ export interface RoomBoxProps {
   room: Room;
   scale: number;
   theme?: 'light' | 'blueprint';
+  isSelected?: boolean;
+  onSelect?: (room: Room) => void;
 }
 
 /**
@@ -74,7 +76,13 @@ function wrapRoomText(text: string, maxCharsPerLine: number, maxLines: number = 
   return lines;
 }
 
-export const RoomBox: React.FC<RoomBoxProps> = ({ room, scale, theme = 'light' }) => {
+export const RoomBox: React.FC<RoomBoxProps> = ({
+  room,
+  scale,
+  theme = 'light',
+  isSelected = false,
+  onSelect,
+}) => {
   const x = room.x * scale;
   const y = room.y * scale;
   const width = room.width * scale;
@@ -159,7 +167,16 @@ export const RoomBox: React.FC<RoomBoxProps> = ({ room, scale, theme = 'light' }
   const badgeY = dimY + gap + 7;
 
   return (
-    <g className="transition-all hover:opacity-95 select-none" data-room-id={room.id}>
+    <g
+      className={`transition-all select-none cursor-pointer ${
+        isSelected ? 'opacity-100' : 'hover:opacity-90'
+      }`}
+      data-room-id={room.id}
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelect?.(room);
+      }}
+    >
       <defs>
         {/* Clip path ensuring all interior text/elements strictly stay within this room */}
         <clipPath id={`clip-${room.id}`}>
@@ -179,11 +196,27 @@ export const RoomBox: React.FC<RoomBoxProps> = ({ room, scale, theme = 'light' }
         width={width}
         height={height}
         fill={fillColor}
-        stroke={wallStroke}
-        strokeWidth={isBalcony ? 2 : 3.5}
+        stroke={isSelected ? '#0284c7' : wallStroke}
+        strokeWidth={isSelected ? 4 : isBalcony ? 2 : 3.5}
         strokeDasharray={isBalcony ? '5 3' : 'none'}
         className="transition-colors"
       />
+
+      {/* Selected Space Animated Glowing Accent */}
+      {isSelected && (
+        <rect
+          x={x - 2}
+          y={y - 2}
+          width={width + 4}
+          height={height + 4}
+          fill="rgba(14, 165, 233, 0.14)"
+          stroke="#38bdf8"
+          strokeWidth="2"
+          strokeDasharray="6 3"
+          rx="3"
+          className="pointer-events-none"
+        />
+      )}
 
       {/* Interior wall offset contour line (double-wall CAD effect) */}
       {!isBalcony && width > 24 && height > 24 && (

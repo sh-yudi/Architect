@@ -43,7 +43,9 @@ CLIENT REQUIREMENTS:
 
 ARCHITECTURAL RULES FOR EACH FLOOR:
 1. Provide a realistic layout with clear circulation: Foyer/Porch, Drawing/Living, Dining, Kitchen, Bedrooms with attached Bathrooms, Powder Room, Balconies, and Staircase.
-2. Every room must have non-overlapping coordinates (x, y, width, length in feet) fitting strictly inside the buildable plot envelope after setbacks.
-3. Every room must include realistic 'doors' (wall: 'top'|'bottom'|'left'|'right', offset, width) and 'windows' (wall, offset, width).
-4. Return a complete, dimensionally accurate plan in strict JSON.`;
+2. PRACTICAL ROOM SIZES (MANDATORY): Any bedroom or living room MUST have a minimum width of 9'-0" to 14'-0". NEVER create narrow 4ft or 5ft wide bedrooms.
+3. STAIRCASE & CIRCULATION: Central stair lobby must be horizontally oriented to differentiate front and back wings (min 7ft wide), never dividing the width into narrow vertical strips.
+4. Every room must have non-overlapping coordinates (x, y, width, length in feet) fitting strictly inside the buildable plot envelope after setbacks.
+5. Every room must include realistic 'doors' (wall: 'top'|'bottom'|'left'|'right', offset, width) and 'windows' (wall, offset, width).
+6. Return a complete, dimensionally accurate plan in strict JSON.`;
 }

@@ -1,19 +1,23 @@
 'use client';
 
 import React, { useState } from 'react';
-import { FloorPlan } from '@/types/plan';
+import { Room, FloorPlan } from '@/types/plan';
 import { RoomBox, formatFeetInches } from './RoomBox';
 
 interface FloorPlanSVGProps {
   floor: FloorPlan;
   plotWidth: number;
   plotLength: number;
+  selectedRoomId?: string | null;
+  onSelectRoom?: (room: Room, floorLevel: number) => void;
 }
 
 export const FloorPlanSVG: React.FC<FloorPlanSVGProps> = ({
   floor,
   plotWidth,
   plotLength,
+  selectedRoomId,
+  onSelectRoom,
 }) => {
   const [zoom, setZoom] = useState<number>(1);
   const [theme, setTheme] = useState<'light' | 'blueprint'>('light');
@@ -554,7 +558,14 @@ export const FloorPlanSVG: React.FC<FloorPlanSVGProps> = ({
             {/* Rooms Layer */}
             <g transform={`translate(${padding}, ${padding})`}>
               {floor.rooms.map((room) => (
-                <RoomBox key={room.id} room={room} scale={scale} theme={theme} />
+                <RoomBox
+                  key={room.id}
+                  room={room}
+                  scale={scale}
+                  theme={theme}
+                  isSelected={selectedRoomId === room.id}
+                  onSelect={(r) => onSelectRoom?.(r, floor.level)}
+                />
               ))}
             </g>
           </svg>

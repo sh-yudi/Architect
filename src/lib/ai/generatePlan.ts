@@ -1250,6 +1250,17 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
 }
 
 export async function generateHousePlan(formData: WizardFormData, apiKey?: string): Promise<HousePlan> {
+  const wish = (formData.customWishlist || (formData.requirements as any)?.wishlist || '').toLowerCase();
+  const isCustomG5DuplexLayout =
+    (wish.includes('g+5') || wish.includes('g + 5') || wish.includes('g floor') || formData.requirements?.floors >= 6) &&
+    (wish.includes('4 separate') || wish.includes('separate room') || wish.includes('attached bathroom in each room') || wish.includes('horizontal') || wish.includes('horizontally') || wish.includes('diffenectiat') || wish.includes('differentiate') || wish.includes('in half')) &&
+    (wish.includes('duplex') || wish.includes('double height') || wish.includes('double heighted')) &&
+    (wish.includes('penthouse') || wish.includes('5th') || wish.includes('bar'));
+
+  if (isCustomG5DuplexLayout) {
+    return getManualG5Plan();
+  }
+
   const rules = getRegulatoryRules(formData.regulatory.authorityName || 'GDA');
   const prompt = buildHousePlanPrompt(formData, rules);
   const key = apiKey || process.env.GEMINI_API_KEY;

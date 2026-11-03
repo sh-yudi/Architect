@@ -3,9 +3,10 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { HousePlan } from '@/types/plan';
+import { HousePlan, Room } from '@/types/plan';
 import { WizardFormData } from '@/types/wizard';
 import { FloorPlanSVG } from '@/components/floorplan/FloorPlanSVG';
+import { SpaceModifierBlock } from '@/components/floorplan/SpaceModifierBlock';
 import { ThreeDViewer } from '@/components/viewer3d/ThreeDViewer';
 import { BudgetTable } from '@/components/dashboard/BudgetTable';
 import { RegulatoryCard } from '@/components/dashboard/RegulatoryCard';
@@ -36,6 +37,8 @@ export default function ProjectDetailsPage() {
   const [isExportingCAD, setIsExportingCAD] = useState(false);
   const [isExportingAffidavit, setIsExportingAffidavit] = useState(false);
   const [isExportingBlueprint, setIsExportingBlueprint] = useState(false);
+  const [selectedRoomInfo, setSelectedRoomInfo] = useState<{ room: Room; floorLevel: number } | null>(null);
+  const [isModifyingSpace, setIsModifyingSpace] = useState<boolean>(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && id) {
@@ -285,6 +288,96 @@ export default function ProjectDetailsPage() {
     }
   };
 
+  const handleUpdateSpace = async (params: {
+    prompt?: string;
+    directChanges?: { name?: string; width?: number; length?: number };
+    syncAllFloors?: boolean;
+  }) => {
+    if (!plan || !selectedRoomInfo) return;
+    setIsModifyingSpace(true);
+    try {
+      const res = await fetch('/api/modify-space', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          plan,
+          floorLevel: selectedRoomInfo.floorLevel,
+          roomId: selectedRoomInfo.room.id,
+          prompt: params.prompt,
+          directChanges: params.directChanges,
+          syncAllFloors: params.syncAllFloors,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success || !data.updatedPlan) {
+        throw new Error(data.error || 'Failed to update space');
+      }
+
+      setPlan(data.updatedPlan);
+      if (data.updatedRoom) {
+        setSelectedRoomInfo({
+          room: data.updatedRoom,
+          floorLevel: selectedRoomInfo.floorLevel,
+        });
+      }
+      try {
+        sessionStorage.setItem(`plan_${id}`, JSON.stringify(data.updatedPlan));
+        const effectiveForm: WizardFormData = formData || {
+          customWishlist: plan.customWishlist || '',
+          plot: {
+            width: plan.plot.width,
+            length: plan.plot.length,
+            shape: 'rectangular',
+            facing: plan.plot.facing,
+            city: 'Ghaziabad',
+            state: 'Uttar Pradesh',
+            pincode: '201001',
+          },
+          requirements: {
+            floors: plan.floors.length,
+            bedrooms: 4,
+            bathrooms: 4,
+            hasLivingRoom: true,
+            kitchenType: 'modular',
+            parkingSpots: 1,
+            hasPoojaRoom: false,
+            hasServantQuarter: false,
+            hasTerrace: true,
+            hasBasement: false,
+          },
+          preferences: {
+            style: (plan.facade.style as any) || 'Modern',
+            garden: 'front',
+            balconies: 1,
+            windowType: 'standard',
+          },
+          budget: {
+            range: '40-60L',
+            qualityTier: 'luxury',
+          },
+          regulatory: {
+            ownerName: 'Property Owner',
+            fatherOrSpouseName: 'S/o Late Shri',
+            khasraNumber: '102/4',
+            khatauniNumber: '55',
+            authorityName: 'Ghaziabad Development Authority (GDA)',
+            zone: 'Zone 1',
+          },
+        };
+        savePlanToHistory(id, data.updatedPlan, effectiveForm);
+        setHistory(getPlanHistory());
+      } catch (e) {
+        console.warn('Storage sync error:', e);
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.message || 'Failed to update space');
+      throw err;
+    } finally {
+      setIsModifyingSpace(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 p-4 sm:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -448,6 +541,22 @@ export default function ProjectDetailsPage() {
                 📥 Download Blueprint Set (PDF)
               </button>
             </div>
+            {/* Interactive AI Space Modifier & Inspector Block */}
+            <SpaceModifierBlock
+              selectedRoom={selectedRoomInfo?.room || null}
+              floorLevel={selectedRoomInfo?.floorLevel ?? null}
+              floorName={
+                selectedRoomInfo
+                  ? plan.floors.find((f) => f.level === selectedRoomInfo.floorLevel)?.floorName
+                  : undefined
+              }
+              plotWidth={plan.plot.width}
+              plotLength={plan.plot.length}
+              onUpdateSpace={handleUpdateSpace}
+              onClose={() => setSelectedRoomInfo(null)}
+              isLoading={isModifyingSpace}
+            />
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {plan.floors.map((floor) => (
                 <FloorPlanSVG
@@ -455,6 +564,8 @@ export default function ProjectDetailsPage() {
                   floor={floor}
                   plotWidth={plan.plot.width}
                   plotLength={plan.plot.length}
+                  selectedRoomId={selectedRoomInfo?.room?.id}
+                  onSelectRoom={(room, level) => setSelectedRoomInfo({ room, floorLevel: level })}
                 />
               ))}
             </div>
