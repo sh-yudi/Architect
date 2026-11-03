@@ -359,4 +359,46 @@ describe('Gemini House Plan Generator', () => {
     const validation = housePlanZodSchema.safeParse(plan);
     expect(validation.success).toBe(true);
   });
+
+  it('should generate verified manual G+5 plan with horizontal stair lobby, 4 rooms with attached baths, express lift, and open garden till the top', async () => {
+    const fullUserPrompt =
+      'I want to create a G+5 in which g floor consist of one garden on back side of 6*20 size and whole rest part will be parking with one good size washroom 1st n 2nd floor will consist of 4 separate rooms with attached bathroom in each room And after that 3rd n 4th floor will be duplex type which have a double heighted drawing room one kitchen one guest room and 2 master suits 5th floor consist one spacious master suite with open terrace with one bar corner there should be a lift that will directly open to the 3rd floor not on 1&2 floor also, the stairs lobby should be horizontally that will diffenectiat the front part and back part of the plot in half and use your brain to develop the balconies also the garden on the ground floor will have the open area till the last';
+
+    const promptData: WizardFormData = {
+      ...mockWizardData,
+      customWishlist: fullUserPrompt,
+      requirements: {
+        ...mockWizardData.requirements,
+        floors: 6,
+      },
+    };
+
+    const plan = await generateHousePlan(promptData, undefined);
+    expect(plan.floors.length).toBe(6);
+
+    // Floor 1 & 2 must have 4 rooms each with attached baths & horizontal stair lobby
+    for (const lvl of [1, 2]) {
+      const fl = plan.floors.find((f) => f.level === lvl)!;
+      const rooms = fl.rooms.filter((r) => r.id.includes('-room'));
+      const baths = fl.rooms.filter((r) => r.id.includes('-bath'));
+      expect(rooms.length).toBe(4);
+      expect(baths.length).toBe(4);
+      expect(fl.rooms.some((r) => r.name.toLowerCase().includes('horizontal'))).toBe(true);
+    }
+
+    // Floor 3 must have direct express lift and double-height drawing room
+    const f3 = plan.floors.find((f) => f.level === 3)!;
+    expect(f3.rooms.some((r) => r.name.toLowerCase().includes('express lift'))).toBe(true);
+    expect(f3.rooms.some((r) => r.name.toLowerCase().includes('double-height'))).toBe(true);
+
+    // Floor 5 must have open terrace and cocktail bar
+    const f5 = plan.floors.find((f) => f.level === 5)!;
+    expect(f5.rooms.some((r) => r.name.toLowerCase().includes('terrace'))).toBe(true);
+    expect(f5.rooms.some((r) => r.name.toLowerCase().includes('bar'))).toBe(true);
+
+    // Open garden till the top
+    for (const fl of plan.floors) {
+      expect(fl.rooms.some((r) => r.name.toLowerCase().includes('garden') || r.name.toLowerCase().includes('open'))).toBe(true);
+    }
+  });
 });

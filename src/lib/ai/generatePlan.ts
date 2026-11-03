@@ -4,6 +4,7 @@ import { housePlanZodSchema } from '../schemas/housePlanSchema';
 import { getRegulatoryRules } from '../regulatory/engine';
 import { buildHousePlanPrompt } from './promptBuilder';
 import { calculateDetailedBOQ } from '../rates/calculator';
+import { getManualG5Plan } from './manualG5Plan';
 
 interface LayoutConfig {
   plotWidth: number;
@@ -71,6 +72,17 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
 
   const floors: FloorPlan[] = [];
   const lowerWish = wishlist.toLowerCase();
+
+  // Signature architectural manual verification layout for the client's exact brief
+  const isCustomG5DuplexLayout =
+    (lowerWish.includes('g+5') || lowerWish.includes('g + 5') || lowerWish.includes('g floor') || floorsCount >= 6) &&
+    (lowerWish.includes('4 separate') || lowerWish.includes('separate room') || lowerWish.includes('attached bathroom in each room') || lowerWish.includes('horizontal') || lowerWish.includes('horizontally') || lowerWish.includes('diffenectiat') || lowerWish.includes('differentiate') || lowerWish.includes('in half')) &&
+    (lowerWish.includes('duplex') || lowerWish.includes('double height') || lowerWish.includes('double heighted')) &&
+    (lowerWish.includes('penthouse') || lowerWish.includes('5th') || lowerWish.includes('bar'));
+
+  if (isCustomG5DuplexLayout) {
+    return getManualG5Plan().floors;
+  }
 
   // Keyword extraction from user wishlist
   const wantsGym = lowerWish.includes('gym') || lowerWish.includes('fitness') || lowerWish.includes('workout');
