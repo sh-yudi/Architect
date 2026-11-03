@@ -215,4 +215,17 @@ describe('ProjectDetailsPage Component', () => {
       }));
     });
   });
+
+  it('should switch to history tab and display saved blueprints with active badge', () => {
+    sessionStorage.setItem('plan_test-123', JSON.stringify(mockPlan));
+    sessionStorage.setItem('form_test-123', JSON.stringify(mockFormData));
+
+    const { getByText } = render(<ProjectDetailsPage />);
+
+    // Click Plan History tab
+    fireEvent.click(getByText('Plan History'));
+
+    expect(getByText('Saved Architectural Plans & Revisions')).toBeDefined();
+    expect(getByText(/Currently Active Blueprint/)).toBeDefined();
+  });
 });

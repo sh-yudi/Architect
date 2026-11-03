@@ -1,14 +1,20 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { IntakeWizard } from '@/components/wizard/IntakeWizard';
 import { WizardFormData } from '@/types/wizard';
+import { savePlanToHistory, getPlanHistory, PlanHistoryItem } from '@/lib/storage/history';
 
 export default function StartPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [historyItems, setHistoryItems] = useState<PlanHistoryItem[]>([]);
+
+  useEffect(() => {
+    setHistoryItems(getPlanHistory());
+  }, []);
 
   const handleGenerate = async (formData: WizardFormData) => {
     setLoading(true);
@@ -22,8 +28,7 @@ export default function StartPage() {
       if (!res.ok || !data.projectId) {
         throw new Error(data.error || 'Failed to generate plan. Please try again.');
       }
-      sessionStorage.setItem(`plan_${data.projectId}`, JSON.stringify(data.plan));
-      sessionStorage.setItem(`form_${data.projectId}`, JSON.stringify(formData));
+      savePlanToHistory(data.projectId, data.plan, formData);
       router.push(`/projects/${data.projectId}`);
     } catch (e: any) {
       console.error(e);
@@ -35,13 +40,21 @@ export default function StartPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6">
-      <div className="max-w-4xl mx-auto mb-6">
+      <div className="flex justify-between items-center max-w-4xl mx-auto mb-6">
         <Link
           href="/"
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition px-3 py-1.5 rounded-lg hover:bg-slate-200/60"
         >
           &larr; Exit to Home
         </Link>
+        {historyItems.length > 0 && (
+          <Link
+            href={`/projects/${historyItems[0].id}`}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-700 hover:text-sky-900 bg-sky-50 border border-sky-200 px-3 py-1.5 rounded-lg hover:bg-sky-100 transition shadow-sm"
+          >
+            <span>📜 Past Blueprints ({historyItems.length})</span>
+          </Link>
+        )}
       </div>
 
       <div className="max-w-4xl mx-auto mb-8 text-center">
