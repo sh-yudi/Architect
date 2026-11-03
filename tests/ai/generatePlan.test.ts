@@ -275,4 +275,69 @@ describe('Gemini House Plan Generator', () => {
     const validation = housePlanZodSchema.safeParse(plan);
     expect(validation.success).toBe(true);
   });
+
+  it('should accurately parse and generate a G+5 building tailored to custom floor-by-floor prompt', async () => {
+    const userPrompt =
+      'I want to create a G+5 in which g floor consust of one garden on back side of 6*20 size and whole rest part will be parking with one good size washroom 1st n 2nd floor will consist of 4 rooms with attached bathroom And after that 3rd n 4th floor will be duplex type which have a double heighted drawing room one kitchen one guest room and 2 master suits 5th floor consist one spacious master suite with open terrace with one bar corner';
+
+    const g5FormData: WizardFormData = {
+      ...mockWizardData,
+      customWishlist: userPrompt,
+      requirements: {
+        ...mockWizardData.requirements,
+        floors: 6, // G+5 = 6 levels
+      },
+    };
+
+    const plan = await generateHousePlan(g5FormData, undefined);
+
+    // Expect 6 floors (Level 0 through 5)
+    expect(plan.floors.length).toBe(6);
+
+    // Ground Floor: Must contain parking, rear garden (6x20), and washroom/powder toilet
+    const gFloor = plan.floors.find((f) => f.level === 0)!;
+    expect(gFloor).toBeDefined();
+    const gNames = gFloor.rooms.map((r) => r.name.toLowerCase());
+    expect(gNames.some((n) => n.includes('parking') || n.includes('stilt'))).toBe(true);
+    expect(gNames.some((n) => n.includes('garden') || n.includes('lawn'))).toBe(true);
+    expect(gNames.some((n) => n.includes('washroom') || n.includes('toilet') || n.includes('bath'))).toBe(true);
+
+    // 1st Floor: 4 bedrooms with 4 attached bathrooms
+    const f1 = plan.floors.find((f) => f.level === 1)!;
+    const f1Rooms = f1.rooms.filter((r) => r.name.toLowerCase().includes('bed'));
+    const f1Baths = f1.rooms.filter((r) => r.name.toLowerCase().includes('bath') || r.name.toLowerCase().includes('toilet'));
+    expect(f1Rooms.length).toBeGreaterThanOrEqual(4);
+    expect(f1Baths.length).toBeGreaterThanOrEqual(4);
+
+    // 2nd Floor: 4 bedrooms with 4 attached bathrooms
+    const f2 = plan.floors.find((f) => f.level === 2)!;
+    const f2Rooms = f2.rooms.filter((r) => r.name.toLowerCase().includes('bed'));
+    const f2Baths = f2.rooms.filter((r) => r.name.toLowerCase().includes('bath') || r.name.toLowerCase().includes('toilet'));
+    expect(f2Rooms.length).toBeGreaterThanOrEqual(4);
+    expect(f2Baths.length).toBeGreaterThanOrEqual(4);
+
+    // 3rd Floor (Lower Duplex): Double-height drawing room, kitchen, guest room, guest bath
+    const f3 = plan.floors.find((f) => f.level === 3)!;
+    const f3Names = f3.rooms.map((r) => r.name.toLowerCase());
+    expect(f3Names.some((n) => n.includes('drawing') || n.includes('living'))).toBe(true);
+    expect(f3Names.some((n) => n.includes('kitchen'))).toBe(true);
+    expect(f3Names.some((n) => n.includes('guest'))).toBe(true);
+
+    // 4th Floor (Upper Duplex): Double-height void/overlook, 2 master suites with attached baths
+    const f4 = plan.floors.find((f) => f.level === 4)!;
+    const f4Names = f4.rooms.map((r) => r.name.toLowerCase());
+    expect(f4Names.some((n) => n.includes('void') || n.includes('overlook') || n.includes('mezzanine') || n.includes('lounge'))).toBe(true);
+    const f4MasterSuites = f4.rooms.filter((r) => r.name.toLowerCase().includes('master'));
+    expect(f4MasterSuites.length).toBeGreaterThanOrEqual(2);
+
+    // 5th Floor: Spacious master suite, open terrace, bar corner
+    const f5 = plan.floors.find((f) => f.level === 5)!;
+    const f5Names = f5.rooms.map((r) => r.name.toLowerCase());
+    expect(f5Names.some((n) => n.includes('master'))).toBe(true);
+    expect(f5Names.some((n) => n.includes('terrace'))).toBe(true);
+    expect(f5Names.some((n) => n.includes('bar'))).toBe(true);
+
+    const validation = housePlanZodSchema.safeParse(plan);
+    expect(validation.success).toBe(true);
+  });
 });

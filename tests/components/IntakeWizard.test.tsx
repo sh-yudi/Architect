@@ -150,6 +150,26 @@ describe('IntakeWizard Component', () => {
     expect(submittedData.requirements.floors).toBe(5);
     expect(submittedData.requirements.hasBasement).toBe(true);
   });
+
+  it('should allow 1-click instant generation directly from Step 1 when custom wishlist prompt is typed', () => {
+    const handleSubmit = vi.fn();
+    const { getByLabelText, getByText } = render(<IntakeWizard onSubmit={handleSubmit} />);
+
+    const wishlistInput = getByLabelText(/Describe Your Dream House/i) as HTMLTextAreaElement;
+    fireEvent.change(wishlistInput, {
+      target: { value: 'I want to create a G+5 with stilt parking and duplex on 3rd floor' },
+    });
+
+    const instantBtn = getByText('⚡ Instant AI Generate from Vision');
+    expect(instantBtn).toBeDefined();
+
+    fireEvent.click(instantBtn);
+
+    expect(handleSubmit).toHaveBeenCalledTimes(1);
+    const submittedData = handleSubmit.mock.calls[0][0];
+    expect(submittedData.customWishlist).toContain('G+5');
+    expect(submittedData.requirements.floors).toBe(6); // G+5 = 6 levels
+  });
 });
 
 describe('StartPage Component', () => {

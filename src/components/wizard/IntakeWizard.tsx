@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { WizardFormData } from '@/types/wizard';
+import { extractRequirementsFromPrompt } from '@/lib/ai/generatePlan';
 
 interface IntakeWizardProps {
   onSubmit: (data: WizardFormData) => void;
@@ -213,6 +214,40 @@ export const IntakeWizard: React.FC<IntakeWizardProps> = ({ onSubmit }) => {
             <p className="text-[11px] text-slate-500 mt-1">
               Our AI architect will review your exact paragraph to customize room zoning, doors, windows, terrace features, and municipal authority setbacks.
             </p>
+
+            {formData.customWishlist && formData.customWishlist.trim().length > 8 && (
+              <div className="mt-3 p-3.5 bg-gradient-to-r from-sky-50 via-indigo-50/40 to-blue-50 border border-sky-200 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-sky-900">
+                      ⚡ Ready to Generate with AI?
+                    </span>
+                    <span className="text-[10px] bg-sky-200 text-sky-900 font-semibold px-2 py-0.5 rounded-full">
+                      1-Click Instant
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 mt-0.5">
+                    Skip remaining wizard steps — our AI engine will parse your prompt and build the full blueprint package directly.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const parsedReqs = extractRequirementsFromPrompt(
+                      formData.customWishlist || '',
+                      formData.requirements
+                    );
+                    onSubmit({
+                      ...formData,
+                      requirements: parsedReqs,
+                    });
+                  }}
+                  className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-sm transition whitespace-nowrap flex items-center justify-center gap-1.5"
+                >
+                  <span>⚡ Instant AI Generate from Vision</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
