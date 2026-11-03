@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { FloorPlan } from '@/types/plan';
-import { RoomBox } from './RoomBox';
+import { RoomBox, formatFeetInches } from './RoomBox';
 
 interface FloorPlanSVGProps {
   floor: FloorPlan;
@@ -231,6 +231,85 @@ export const FloorPlanSVG: React.FC<FloorPlanSVGProps> = ({
               </text>
             </g>
 
+            {/* Exterior Dimension String (Right Dimension Line) */}
+            <g transform={`translate(${padding + plotWidth * scale + 18}, ${padding})`}>
+              <line
+                x1={0}
+                y1={0}
+                x2={0}
+                y2={plotLength * scale}
+                stroke={isBlueprint ? '#38bdf8' : '#64748b'}
+                strokeWidth="1"
+              />
+              <line
+                x1={-3}
+                y1={3}
+                x2={3}
+                y2={-3}
+                stroke={isBlueprint ? '#38bdf8' : '#0f172a'}
+                strokeWidth="1.5"
+              />
+              <line
+                x1={-3}
+                y1={plotLength * scale + 3}
+                x2={3}
+                y2={plotLength * scale - 3}
+                stroke={isBlueprint ? '#38bdf8' : '#0f172a'}
+                strokeWidth="1.5"
+              />
+              <text
+                x={7}
+                y={(plotLength * scale) / 2}
+                textAnchor="middle"
+                transform={`rotate(90, 7, ${(plotLength * scale) / 2})`}
+                fill={isBlueprint ? '#7dd3fc' : '#475569'}
+                fontSize="10"
+                fontFamily="monospace"
+                fontWeight="600"
+              >
+                {plotLength}&apos;-0&quot; EAST/WEST BOUNDARY
+              </text>
+            </g>
+
+            {/* Exterior Dimension String (Bottom Dimension Line) */}
+            <g transform={`translate(${padding}, ${padding + plotLength * scale + 18})`}>
+              <line
+                x1={0}
+                y1={0}
+                x2={plotWidth * scale}
+                y2={0}
+                stroke={isBlueprint ? '#38bdf8' : '#64748b'}
+                strokeWidth="1"
+              />
+              <line
+                x1={-3}
+                y1={3}
+                x2={3}
+                y2={-3}
+                stroke={isBlueprint ? '#38bdf8' : '#0f172a'}
+                strokeWidth="1.5"
+              />
+              <line
+                x1={plotWidth * scale - 3}
+                y1={3}
+                x2={plotWidth * scale + 3}
+                y2={-3}
+                stroke={isBlueprint ? '#38bdf8' : '#0f172a'}
+                strokeWidth="1.5"
+              />
+              <text
+                x={(plotWidth * scale) / 2}
+                y={11}
+                textAnchor="middle"
+                fill={isBlueprint ? '#7dd3fc' : '#475569'}
+                fontSize="10"
+                fontFamily="monospace"
+                fontWeight="600"
+              >
+                {plotWidth}&apos;-0&quot; ROAD FRONTAGE &amp; ACCESS
+              </text>
+            </g>
+
             {/* Outer Plot Boundary Dashed Line */}
             <rect
               x={padding}
@@ -318,37 +397,94 @@ export const FloorPlanSVG: React.FC<FloorPlanSVGProps> = ({
                     </g>
                   )}
 
-                  {/* Side Passages Shading */}
+                  {/* Side Passages Shading & Dimensions */}
                   {leftSetbackFt > 0 && (
-                    <rect
-                      x={padding}
-                      y={padding + minY * scale}
-                      width={leftSetbackFt * scale}
-                      height={(maxY - minY) * scale}
-                      fill={isBlueprint ? 'rgba(56, 189, 248, 0.03)' : 'rgba(100, 116, 139, 0.05)'}
-                    />
+                    <g>
+                      <rect
+                        x={padding}
+                        y={padding + minY * scale}
+                        width={leftSetbackFt * scale}
+                        height={(maxY - minY) * scale}
+                        fill={isBlueprint ? 'rgba(56, 189, 248, 0.03)' : 'rgba(100, 116, 139, 0.05)'}
+                      />
+                      <text
+                        x={padding + (leftSetbackFt * scale) / 2}
+                        y={padding + minY * scale + ((maxY - minY) * scale) / 2}
+                        textAnchor="middle"
+                        transform={`rotate(-90, ${padding + (leftSetbackFt * scale) / 2}, ${padding + minY * scale + ((maxY - minY) * scale) / 2})`}
+                        fill={isBlueprint ? '#38bdf8' : '#64748b'}
+                        fontSize="7.5"
+                        fontFamily="monospace"
+                        fontWeight="600"
+                        opacity={0.85}
+                      >
+                        SIDE: {formatFeetInches(leftSetbackFt)}
+                      </text>
+                    </g>
                   )}
                   {rightSetbackFt > 0 && (
-                    <rect
-                      x={padding + maxX * scale}
-                      y={padding + minY * scale}
-                      width={rightSetbackFt * scale}
-                      height={(maxY - minY) * scale}
-                      fill={isBlueprint ? 'rgba(56, 189, 248, 0.03)' : 'rgba(100, 116, 139, 0.05)'}
-                    />
+                    <g>
+                      <rect
+                        x={padding + maxX * scale}
+                        y={padding + minY * scale}
+                        width={rightSetbackFt * scale}
+                        height={(maxY - minY) * scale}
+                        fill={isBlueprint ? 'rgba(56, 189, 248, 0.03)' : 'rgba(100, 116, 139, 0.05)'}
+                      />
+                      <text
+                        x={padding + maxX * scale + (rightSetbackFt * scale) / 2}
+                        y={padding + minY * scale + ((maxY - minY) * scale) / 2}
+                        textAnchor="middle"
+                        transform={`rotate(90, ${padding + maxX * scale + (rightSetbackFt * scale) / 2}, ${padding + minY * scale + ((maxY - minY) * scale) / 2})`}
+                        fill={isBlueprint ? '#38bdf8' : '#64748b'}
+                        fontSize="7.5"
+                        fontFamily="monospace"
+                        fontWeight="600"
+                        opacity={0.85}
+                      >
+                        SIDE: {formatFeetInches(rightSetbackFt)}
+                      </text>
+                    </g>
                   )}
 
-                  {/* Buildable Envelope Border */}
-                  <rect
-                    x={padding + minX * scale}
-                    y={padding + minY * scale}
-                    width={(maxX - minX) * scale}
-                    height={(maxY - minY) * scale}
-                    fill="none"
-                    stroke={isBlueprint ? 'rgba(56, 189, 248, 0.4)' : 'rgba(217, 119, 6, 0.45)'}
-                    strokeWidth="1.2"
-                    strokeDasharray="4 3"
-                  />
+                  {/* Buildable Envelope Border & Boundary Dimensions */}
+                  <g>
+                    <rect
+                      x={padding + minX * scale}
+                      y={padding + minY * scale}
+                      width={(maxX - minX) * scale}
+                      height={(maxY - minY) * scale}
+                      fill="none"
+                      stroke={isBlueprint ? 'rgba(56, 189, 248, 0.4)' : 'rgba(217, 119, 6, 0.45)'}
+                      strokeWidth="1.2"
+                      strokeDasharray="4 3"
+                    />
+                    {/* Top side buildable width annotation */}
+                    <text
+                      x={padding + minX * scale + ((maxX - minX) * scale) / 2}
+                      y={padding + minY * scale - 4}
+                      textAnchor="middle"
+                      fill={isBlueprint ? '#38bdf8' : '#b45309'}
+                      fontSize="8"
+                      fontFamily="monospace"
+                      fontWeight="700"
+                    >
+                      BUILDABLE WIDTH: {formatFeetInches(maxX - minX)}
+                    </text>
+                    {/* Right side buildable depth annotation */}
+                    <text
+                      x={padding + maxX * scale + 8}
+                      y={padding + minY * scale + ((maxY - minY) * scale) / 2}
+                      textAnchor="middle"
+                      transform={`rotate(90, ${padding + maxX * scale + 8}, ${padding + minY * scale + ((maxY - minY) * scale) / 2})`}
+                      fill={isBlueprint ? '#38bdf8' : '#b45309'}
+                      fontSize="8"
+                      fontFamily="monospace"
+                      fontWeight="700"
+                    >
+                      BUILDABLE DEPTH: {formatFeetInches(maxY - minY)}
+                    </text>
+                  </g>
                 </g>
               );
             })()}

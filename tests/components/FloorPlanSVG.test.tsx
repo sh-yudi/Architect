@@ -57,4 +57,54 @@ describe('FloorPlanSVG Component', () => {
     expect(getByText('Kitchen')).toBeDefined();
     expect(getByText("10' × 12'")).toBeDefined();
   });
+
+  it('should render side dimensions for rooms, boundaries, and buildable envelope', () => {
+    const { getByText, getAllByText } = render(
+      <FloorPlanSVG floor={mockFloor} plotWidth={30} plotLength={40} />
+    );
+
+    // Room side dimensions (architectural notation)
+    expect(getAllByText("12'-0\"").length).toBeGreaterThanOrEqual(1);
+    expect(getAllByText("14'-0\"").length).toBeGreaterThanOrEqual(1);
+    expect(getAllByText("10'-0\"").length).toBeGreaterThanOrEqual(1);
+
+    // Exterior sides
+    expect(getByText(/EAST\/WEST BOUNDARY/)).toBeDefined();
+    expect(getByText(/ROAD FRONTAGE & ACCESS/)).toBeDefined();
+
+    // Buildable envelope side markings
+    expect(getByText(/BUILDABLE WIDTH/)).toBeDefined();
+    expect(getByText(/BUILDABLE DEPTH/)).toBeDefined();
+  });
+
+  it('should render clipPath and keep narrow room contents within bounds', () => {
+    const narrowFloor: FloorPlan = {
+      level: 1,
+      floorName: 'First Floor',
+      rooms: [
+        {
+          id: 'bath1',
+          name: 'Floor 1 Attached Bathroom 1',
+          x: 3,
+          y: 5,
+          width: 3.5,
+          length: 15,
+          doors: [],
+          windows: [],
+        },
+      ],
+    };
+
+    const { container, getByText } = render(
+      <FloorPlanSVG floor={narrowFloor} plotWidth={30} plotLength={40} />
+    );
+
+    // SVG clipPath exists for the room
+    const clipPath = container.querySelector('#clip-bath1');
+    expect(clipPath).not.toBeNull();
+
+    // Side dimensions for the narrow room
+    expect(getByText("3'-6\"")).toBeDefined();
+    expect(getByText("15'-0\"")).toBeDefined();
+  });
 });
