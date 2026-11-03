@@ -150,12 +150,19 @@ export const wizardFormSchema = z.object({
     qualityTier: z.enum(['economy', 'standard', 'premium', 'luxury']),
   }),
   regulatory: z.object({
-    ownerName: z.string(),
-    fatherOrSpouseName: z.string(),
-    khasraNumber: z.string(),
-    khatauniNumber: z.string(),
-    authorityName: z.string(),
-    zone: z.string(),
+    ownerName: z.string().optional().default('Property Owner'),
+    fatherOrSpouseName: z.string().optional().default(''),
+    khasraNumber: z.string().optional().default(''),
+    khatauniNumber: z.string().optional().default(''),
+    authorityName: z.string().optional().default('Municipal Corporation'),
+    zone: z.string().optional().default('Zone 1'),
+  }).optional().default({
+    ownerName: 'Property Owner',
+    fatherOrSpouseName: '',
+    khasraNumber: '',
+    khatauniNumber: '',
+    authorityName: 'Municipal Corporation',
+    zone: 'Zone 1',
   }),
 });
 

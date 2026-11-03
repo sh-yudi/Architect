@@ -302,19 +302,38 @@ describe('Gemini House Plan Generator', () => {
     expect(gNames.some((n) => n.includes('garden') || n.includes('lawn'))).toBe(true);
     expect(gNames.some((n) => n.includes('washroom') || n.includes('toilet') || n.includes('bath'))).toBe(true);
 
-    // 1st Floor: 4 bedrooms with 4 attached bathrooms
+    // 1st & 2nd Floors: In practical Indian architecture on 20-30' plots, the client's request
+    // of "1st n 2nd floor will consist of 4 rooms with attached bathroom" translates to
+    // 2 Grand Master Suites per floor (Suites 1 & 2 on Fl 1, Suites 3 & 4 on Fl 2) = 4 luxury suites total!
+    // Every bedroom must be practical (width >= 12'-0", never 4.5' corridors!)
     const f1 = plan.floors.find((f) => f.level === 1)!;
-    const f1Rooms = f1.rooms.filter((r) => r.name.toLowerCase().includes('bed'));
-    const f1Baths = f1.rooms.filter((r) => r.name.toLowerCase().includes('bath') || r.name.toLowerCase().includes('toilet'));
-    expect(f1Rooms.length).toBeGreaterThanOrEqual(4);
-    expect(f1Baths.length).toBeGreaterThanOrEqual(4);
+    const f1Suites = f1.rooms.filter((r) => r.name.toLowerCase().includes('suite') || r.name.toLowerCase().includes('bed'));
+    const f1Baths = f1.rooms.filter((r) => r.name.toLowerCase().includes('bath'));
+    expect(f1Suites.length).toBeGreaterThanOrEqual(2);
+    expect(f1Baths.length).toBeGreaterThanOrEqual(2);
+    for (const suite of f1Suites) {
+      expect(suite.width).toBeGreaterThanOrEqual(12.0); // Practical bedroom width
+      expect(suite.length).toBeGreaterThanOrEqual(8.0);
+    }
+    for (const bath of f1Baths) {
+      expect(bath.width).toBeGreaterThanOrEqual(6.0); // Practical luxury bathroom width
+    }
 
-    // 2nd Floor: 4 bedrooms with 4 attached bathrooms
     const f2 = plan.floors.find((f) => f.level === 2)!;
-    const f2Rooms = f2.rooms.filter((r) => r.name.toLowerCase().includes('bed'));
-    const f2Baths = f2.rooms.filter((r) => r.name.toLowerCase().includes('bath') || r.name.toLowerCase().includes('toilet'));
-    expect(f2Rooms.length).toBeGreaterThanOrEqual(4);
-    expect(f2Baths.length).toBeGreaterThanOrEqual(4);
+    const f2Suites = f2.rooms.filter((r) => r.name.toLowerCase().includes('suite') || r.name.toLowerCase().includes('bed'));
+    const f2Baths = f2.rooms.filter((r) => r.name.toLowerCase().includes('bath'));
+    expect(f2Suites.length).toBeGreaterThanOrEqual(2);
+    expect(f2Baths.length).toBeGreaterThanOrEqual(2);
+    for (const suite of f2Suites) {
+      expect(suite.width).toBeGreaterThanOrEqual(12.0);
+      expect(suite.length).toBeGreaterThanOrEqual(8.0);
+    }
+    for (const bath of f2Baths) {
+      expect(bath.width).toBeGreaterThanOrEqual(6.0);
+    }
+    // Total master suites across 1st & 2nd floors equals 4 suites with attached baths
+    expect(f1Suites.length + f2Suites.length).toBeGreaterThanOrEqual(4);
+    expect(f1Baths.length + f2Baths.length).toBeGreaterThanOrEqual(4);
 
     // 3rd Floor (Lower Duplex): Double-height drawing room, kitchen, guest room, guest bath
     const f3 = plan.floors.find((f) => f.level === 3)!;

@@ -116,8 +116,8 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
   }
 
   // Exact column width calculation ensuring sum(widths) === buildableWidth with ZERO overflow
-  const isNarrowPlot = buildableWidth < 22;
-  const leftColWidth = isNarrowPlot ? Math.floor(buildableWidth * 0.62) : Math.floor(buildableWidth * 0.52);
+  const isNarrowPlot = buildableWidth < 24;
+  const leftColWidth = isNarrowPlot ? Math.min(Math.max(Math.floor(buildableWidth * 0.65), 12), buildableWidth - 6.5) : Math.floor(buildableWidth * 0.55);
   const rightColWidth = buildableWidth - leftColWidth;
 
   // 1. BASEMENT (If requested or mentioned in wishlist)
@@ -171,333 +171,467 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
   }
 
   // 2. Helper floor generators for prompt-specialized architectures
-  const generateFourRoomFloor = (lvl: number, floorName: string): FloorPlan => {
+  const generateMasterSuitesFloor = (
+    lvl: number,
+    floorName: string,
+    suiteStartNum: number
+  ): FloorPlan => {
     const fRooms: Room[] = [];
     const prefix = `f${lvl}`;
 
-    const stairCoreLen = 8;
-    const frontHalfLen = Math.floor((buildableLength - stairCoreLen) / 2);
-    const rearHalfLen = buildableLength - frontHalfLen - stairCoreLen;
+    // Layout configuration:
+    // Left Column (leftColWidth >= 12'-0" to 14'-0") - Front Balcony, Front Master Suite, Rear Master Suite, Rear Balcony
+    // Right Column (rightColWidth >= 6'-6" to 8'-0") - Attached Bath 1, Central Core, Walk-in Dresser, Attached Bath 2
+    const balcLen = Math.min(Math.max(Math.floor(buildableLength * 0.1), 3.0), 4.5);
+    const usableDepth = buildableLength - 2 * balcLen;
+    const frontBedLen = Math.floor(usableDepth * 0.48);
+    const rearBedLen = usableDepth - frontBedLen;
 
-    const wingW = Math.floor(buildableWidth / 2);
-    const wingW2 = buildableWidth - wingW;
+    const bathLen = Math.max(Math.floor(buildableLength * 0.22), 5);
+    const stairLen = Math.max(Math.floor(buildableLength * 0.28), 6);
+    const dressLen = Math.max(Math.floor(buildableLength * 0.22), 4);
+    const bath2Len = buildableLength - bathLen - stairLen - dressLen;
 
-    const bathLen = Math.min(Math.max(Math.floor(frontHalfLen * 0.3), 4.5), 5.5);
-    const bedLen = frontHalfLen - bathLen;
-    const rearBathLen = Math.min(Math.max(Math.floor(rearHalfLen * 0.3), 4.5), 5.5);
-    const rearBedLen = rearHalfLen - rearBathLen;
-
-    // Room 1 (Front Left): Bedroom 1 + Attached Bath 1
+    // Left Column (Main Living & Bed Suites - Width >= 12'-0" to 14'-0"):
+    // 1. Front Sit-out Balcony
     fRooms.push({
-      id: `${prefix}-bed1`,
-      name: `Floor ${lvl} Bedroom 1 (Front Suite)`,
+      id: `${prefix}-balc-front`,
+      name: 'Front Sit-out Balcony',
       x: originX,
       y: originY,
-      width: wingW,
-      length: bedLen,
-      doors: [{ id: `${prefix}-d1`, wall: 'bottom', offset: 2.5, width: 3.0 }],
-      windows: [{ id: `${prefix}-w1`, wall: 'top', offset: 2.5, width: Math.min(wingW - 2, 5.0) }],
+      width: leftColWidth,
+      length: balcLen,
+      doors: [{ id: `${prefix}-bfd`, wall: 'bottom', offset: Math.floor(leftColWidth / 2), width: 3.5 }],
+      windows: [],
     });
+
+    // 2. Front Grand Master Suite (Suite 1 on Fl 1 / Suite 3 on Fl 2)
+    fRooms.push({
+      id: `${prefix}-suite-front`,
+      name: `Grand Master Suite ${suiteStartNum} (Front Balcony)`,
+      x: originX,
+      y: originY + balcLen,
+      width: leftColWidth,
+      length: frontBedLen,
+      doors: [
+        { id: `${prefix}-sfd-core`, wall: 'right', offset: Math.max(frontBedLen - 3, 2), width: 3.0 },
+        { id: `${prefix}-sfd-bath`, wall: 'right', offset: 2.0, width: 2.5 },
+      ],
+      windows: [
+        { id: `${prefix}-sfw-front`, wall: 'top', offset: 2.5, width: Math.min(leftColWidth - 2, 5.0) },
+        { id: `${prefix}-sfw-side`, wall: 'left', offset: 3, width: 4.0 },
+      ],
+    });
+
+    // 3. Rear Grand Master Suite (Suite 2 on Fl 1 / Suite 4 on Fl 2)
+    fRooms.push({
+      id: `${prefix}-suite-rear`,
+      name: `Grand Master Suite ${suiteStartNum + 1} (Garden View)`,
+      x: originX,
+      y: originY + balcLen + frontBedLen,
+      width: leftColWidth,
+      length: rearBedLen,
+      doors: [
+        { id: `${prefix}-srd-core`, wall: 'right', offset: 1.5, width: 3.0 },
+        { id: `${prefix}-srd-bath`, wall: 'right', offset: Math.max(rearBedLen - 3, 2), width: 2.5 },
+        { id: `${prefix}-srd-balc`, wall: 'bottom', offset: Math.floor(leftColWidth / 2), width: 3.5 },
+      ],
+      windows: [
+        { id: `${prefix}-srw-rear`, wall: 'bottom', offset: 2, width: Math.min(leftColWidth - 2, 4.5) },
+        { id: `${prefix}-srw-side`, wall: 'left', offset: 3, width: 4.0 },
+      ],
+    });
+
+    // 4. Rear Garden View Balcony
+    fRooms.push({
+      id: `${prefix}-balc-rear`,
+      name: 'Rear Garden View Balcony',
+      x: originX,
+      y: originY + buildableLength - balcLen,
+      width: leftColWidth,
+      length: balcLen,
+      doors: [{ id: `${prefix}-brd`, wall: 'top', offset: Math.floor(leftColWidth / 2), width: 3.5 }],
+      windows: [],
+    });
+
+    // Right Column (Sequentially arranged along full depth - each gets full rightColWidth >= 6.5' to 8.0'):
+    // 5. Attached Luxury Master Bath 1 (for Front Suite)
     fRooms.push({
       id: `${prefix}-bath1`,
-      name: `Floor ${lvl} Attached Bathroom 1`,
-      x: originX,
-      y: originY + bedLen,
-      width: wingW,
-      length: bathLen,
-      doors: [{ id: `${prefix}-bd1`, wall: 'top', offset: 2, width: 2.5 }],
-      windows: [{ id: `${prefix}-bw1`, wall: 'left', offset: 1, width: 2.0 }],
-    });
-
-    // Room 2 (Front Right): Bedroom 2 + Attached Bath 2
-    fRooms.push({
-      id: `${prefix}-bed2`,
-      name: `Floor ${lvl} Bedroom 2 (East Suite)`,
-      x: originX + wingW,
+      name: `Attached Luxury Bath ${suiteStartNum}`,
+      x: originX + leftColWidth,
       y: originY,
-      width: wingW2,
-      length: bedLen,
-      doors: [{ id: `${prefix}-d2`, wall: 'bottom', offset: 2.5, width: 3.0 }],
-      windows: [{ id: `${prefix}-w2`, wall: 'top', offset: 2.5, width: Math.min(wingW2 - 2, 5.0) }],
-    });
-    fRooms.push({
-      id: `${prefix}-bath2`,
-      name: `Floor ${lvl} Attached Bathroom 2`,
-      x: originX + wingW,
-      y: originY + bedLen,
-      width: wingW2,
+      width: rightColWidth,
       length: bathLen,
-      doors: [{ id: `${prefix}-bd2`, wall: 'top', offset: 2, width: 2.5 }],
-      windows: [{ id: `${prefix}-bw2`, wall: 'right', offset: 1, width: 2.0 }],
+      doors: [{ id: `${prefix}-b1d`, wall: 'left', offset: 2.0, width: 2.5 }],
+      windows: [{ id: `${prefix}-b1w`, wall: 'right', offset: 1.5, width: 2.5 }],
     });
 
-    // Central Circulation Core: Staircase & High-Speed Lift Lobby
+    // 6. Central Staircase & Lift Core Lobby
     fRooms.push({
       id: `${prefix}-core`,
-      name: `Staircase & Lift Core Lobby`,
-      x: originX,
-      y: originY + frontHalfLen,
-      width: buildableWidth,
-      length: stairCoreLen,
-      doors: [{ id: `${prefix}-cd1`, wall: 'top', offset: 2, width: 3.0 }],
-      windows: [{ id: `${prefix}-cw1`, wall: 'right', offset: 2, width: 3.0 }],
+      name: 'Staircase & High-Speed Lift Lobby',
+      x: originX + leftColWidth,
+      y: originY + bathLen,
+      width: rightColWidth,
+      length: stairLen,
+      doors: [{ id: `${prefix}-cd`, wall: 'left', offset: 2.0, width: 3.0 }],
+      windows: [{ id: `${prefix}-cw`, wall: 'right', offset: 2.0, width: 3.0 }],
     });
 
-    // Room 3 (Rear Left): Bedroom 3 + Attached Bath 3
+    // 7. Walk-in Wardrobe / Dressing Lounge for Rear Suite
     fRooms.push({
-      id: `${prefix}-bed3`,
-      name: `Floor ${lvl} Bedroom 3 (Courtyard Suite)`,
-      x: originX,
-      y: originY + frontHalfLen + stairCoreLen,
-      width: wingW,
-      length: rearBedLen,
-      doors: [{ id: `${prefix}-d3`, wall: 'top', offset: 2.5, width: 3.0 }],
-      windows: [{ id: `${prefix}-w3`, wall: 'bottom', offset: 2.5, width: Math.min(wingW - 2, 5.0) }],
-    });
-    fRooms.push({
-      id: `${prefix}-bath3`,
-      name: `Floor ${lvl} Attached Bathroom 3`,
-      x: originX,
-      y: originY + frontHalfLen + stairCoreLen + rearBedLen,
-      width: wingW,
-      length: rearBathLen,
-      doors: [{ id: `${prefix}-bd3`, wall: 'top', offset: 2, width: 2.5 }],
-      windows: [{ id: `${prefix}-bw3`, wall: 'left', offset: 1, width: 2.0 }],
+      id: `${prefix}-dress`,
+      name: `Walk-in Wardrobe & Dressing Room`,
+      x: originX + leftColWidth,
+      y: originY + bathLen + stairLen,
+      width: rightColWidth,
+      length: dressLen,
+      doors: [{ id: `${prefix}-drd`, wall: 'left', offset: 1.5, width: 2.5 }],
+      windows: [{ id: `${prefix}-drw`, wall: 'right', offset: 1.5, width: 2.0 }],
     });
 
-    // Room 4 (Rear Right): Bedroom 4 + Attached Bath 4
+    // 8. Attached Luxury Master Bath 2 (for Rear Suite)
     fRooms.push({
-      id: `${prefix}-bed4`,
-      name: `Floor ${lvl} Bedroom 4 (Master Family Suite)`,
-      x: originX + wingW,
-      y: originY + frontHalfLen + stairCoreLen,
-      width: wingW2,
-      length: rearBedLen,
-      doors: [{ id: `${prefix}-d4`, wall: 'top', offset: 2.5, width: 3.0 }],
-      windows: [{ id: `${prefix}-w4`, wall: 'bottom', offset: 2.5, width: Math.min(wingW2 - 2, 5.0) }],
-    });
-    fRooms.push({
-      id: `${prefix}-bath4`,
-      name: `Floor ${lvl} Attached Bathroom 4`,
-      x: originX + wingW,
-      y: originY + frontHalfLen + stairCoreLen + rearBedLen,
-      width: wingW2,
-      length: rearBathLen,
-      doors: [{ id: `${prefix}-bd4`, wall: 'top', offset: 2, width: 2.5 }],
-      windows: [{ id: `${prefix}-bw4`, wall: 'right', offset: 1, width: 2.0 }],
+      id: `${prefix}-bath2`,
+      name: `Attached Luxury Bath ${suiteStartNum + 1}`,
+      x: originX + leftColWidth,
+      y: originY + bathLen + stairLen + dressLen,
+      width: rightColWidth,
+      length: buildableLength - (bathLen + stairLen + dressLen),
+      doors: [{ id: `${prefix}-b2d`, wall: 'left', offset: 2.0, width: 2.5 }],
+      windows: [{ id: `${prefix}-b2w`, wall: 'right', offset: 1.5, width: 2.5 }],
     });
 
     return { level: lvl, floorName, rooms: fRooms };
   };
 
+  const generateFourRoomFloor = (lvl: number, floorName: string): FloorPlan => {
+    // In professional Indian architecture, the client's brief for 4 rooms across 1st & 2nd floor is distributed
+    // as 2 Grand Master Suites per floor (Suites 1 & 2 on Floor 1, Suites 3 & 4 on Floor 2).
+    const suiteStart = lvl === 1 ? 1 : 3;
+    return generateMasterSuitesFloor(lvl, floorName, suiteStart);
+  };
+
   const generateDuplexLowerFloor = (lvl: number): FloorPlan => {
-    const fRooms: Room[] = [
-      {
-        id: `f${lvl}-drawing`,
-        name: 'Double-Height Formal Drawing & Living Room',
-        x: originX,
-        y: originY,
-        width: leftColWidth,
-        length: frontZoneLength + midZoneLength,
-        doors: [{ id: `f${lvl}-d-main`, wall: 'right', offset: 3, width: 3.5 }],
-        windows: [{ id: `f${lvl}-w-front`, wall: 'top', offset: 3, width: 5.0 }],
-      },
-      {
-        id: `f${lvl}-kitchen`,
-        name: 'Modular Kitchen & Island Pantry',
-        x: originX + leftColWidth,
-        y: originY,
-        width: rightColWidth,
-        length: frontZoneLength,
-        doors: [{ id: `f${lvl}-kd`, wall: 'left', offset: 2, width: 3.0 }],
-        windows: [{ id: `f${lvl}-kw`, wall: 'right', offset: 2, width: 3.5 }],
-      },
-      {
-        id: `f${lvl}-dining`,
-        name: 'Central Dining Hall & Internal Duplex Stair',
-        x: originX + leftColWidth,
-        y: originY + frontZoneLength,
-        width: rightColWidth,
-        length: midZoneLength,
-        doors: [{ id: `f${lvl}-dd`, wall: 'left', offset: 2, width: 3.0 }],
-        windows: [{ id: `f${lvl}-dw`, wall: 'right', offset: 2, width: 3.5 }],
-      },
-      {
-        id: `f${lvl}-guestbed`,
-        name: 'Guest Bedroom Suite',
-        x: originX,
-        y: originY + frontZoneLength + midZoneLength,
-        width: leftColWidth,
-        length: rearZoneLength,
-        doors: [{ id: `f${lvl}-gd`, wall: 'top', offset: 2, width: 3.0 }],
-        windows: [{ id: `f${lvl}-gw`, wall: 'bottom', offset: 2.5, width: 4.0 }],
-      },
-      {
-        id: `f${lvl}-guestbath`,
-        name: 'Attached Guest Bathroom & Powder',
-        x: originX + leftColWidth,
-        y: originY + frontZoneLength + midZoneLength,
-        width: Math.floor(rightColWidth * 0.48),
-        length: rearZoneLength,
-        doors: [{ id: `f${lvl}-gbd`, wall: 'left', offset: 1.5, width: 2.5 }],
-        windows: [{ id: `f${lvl}-gbw`, wall: 'bottom', offset: 1.5, width: 2.0 }],
-      },
-      {
-        id: `f${lvl}-staircore`,
-        name: 'Main Staircase & Lift Core Lobby',
-        x: originX + leftColWidth + Math.floor(rightColWidth * 0.48),
-        y: originY + frontZoneLength + midZoneLength,
-        width: rightColWidth - Math.floor(rightColWidth * 0.48),
-        length: rearZoneLength,
-        doors: [{ id: `f${lvl}-sd`, wall: 'left', offset: 1.5, width: 3.0 }],
-        windows: [{ id: `f${lvl}-sw`, wall: 'right', offset: 1.5, width: 2.5 }],
-      },
-    ];
+    const fRooms: Room[] = [];
+    const prefix = `f${lvl}`;
+
+    const frontLen = Math.floor(buildableLength * 0.52);
+    const rearLen = buildableLength - frontLen;
+
+    const kitchenLen = Math.floor(frontLen * 0.52);
+    const diningLen = frontLen - kitchenLen;
+
+    const stairLen = Math.min(Math.max(Math.floor(rearLen * 0.55), 8.5), 10.5);
+    const bathLen = rearLen - stairLen;
+
+    // Left Column (Width >= 12'-0" to 14'-0"):
+    // 1. Double-Height Formal Drawing & Living Room
+    fRooms.push({
+      id: `${prefix}-drawing`,
+      name: 'Double-Height Formal Drawing & Living Room',
+      x: originX,
+      y: originY,
+      width: leftColWidth,
+      length: frontLen,
+      doors: [{ id: `${prefix}-d-main`, wall: 'right', offset: Math.max(frontLen - 3, 2), width: 3.5 }],
+      windows: [
+        { id: `${prefix}-w-front`, wall: 'top', offset: 3, width: Math.min(leftColWidth - 2, 6.0) },
+        { id: `${prefix}-w-side`, wall: 'left', offset: 4, width: 4.5 },
+      ],
+    });
+
+    // 2. Executive Guest Bedroom Suite
+    fRooms.push({
+      id: `${prefix}-guestbed`,
+      name: 'Executive Guest Bedroom Suite',
+      x: originX,
+      y: originY + frontLen,
+      width: leftColWidth,
+      length: rearLen,
+      doors: [
+        { id: `${prefix}-gd-core`, wall: 'right', offset: 2, width: 3.0 },
+        { id: `${prefix}-gd-bath`, wall: 'right', offset: Math.max(rearLen - 3, 2), width: 2.5 },
+      ],
+      windows: [
+        { id: `${prefix}-gw-rear`, wall: 'bottom', offset: 2.5, width: Math.min(leftColWidth - 2, 4.5) },
+        { id: `${prefix}-gw-side`, wall: 'left', offset: 3, width: 4.0 },
+      ],
+    });
+
+    // Right Column (Width >= 6.5' to 8.0' - full column width for each zone sequentially!):
+    // 3. Modular Kitchen & Breakfast Island
+    fRooms.push({
+      id: `${prefix}-kitchen`,
+      name: 'Modular Kitchen & Breakfast Island',
+      x: originX + leftColWidth,
+      y: originY,
+      width: rightColWidth,
+      length: kitchenLen,
+      doors: [{ id: `${prefix}-kd`, wall: 'left', offset: 2, width: 3.0 }],
+      windows: [{ id: `${prefix}-kw`, wall: 'right', offset: 2, width: 3.0 }],
+    });
+
+    // 4. Central Dining Hall & Internal Duplex Stair
+    fRooms.push({
+      id: `${prefix}-dining`,
+      name: 'Central Dining Hall & Internal Duplex Stair',
+      x: originX + leftColWidth,
+      y: originY + kitchenLen,
+      width: rightColWidth,
+      length: diningLen,
+      doors: [{ id: `${prefix}-dd`, wall: 'left', offset: 2, width: 3.0 }],
+      windows: [{ id: `${prefix}-dw`, wall: 'right', offset: 2, width: 3.0 }],
+    });
+
+    // 5. Main Staircase & Lift Core Lobby
+    fRooms.push({
+      id: `${prefix}-staircore`,
+      name: 'Main Staircase & Lift Core Lobby',
+      x: originX + leftColWidth,
+      y: originY + frontLen,
+      width: rightColWidth,
+      length: stairLen,
+      doors: [{ id: `${prefix}-sd`, wall: 'left', offset: 2.0, width: 3.0 }],
+      windows: [{ id: `${prefix}-sw`, wall: 'right', offset: 2.0, width: 2.5 }],
+    });
+
+    // 6. Attached Guest Bathroom & Powder
+    fRooms.push({
+      id: `${prefix}-guestbath`,
+      name: 'Attached Guest Bathroom & Powder',
+      x: originX + leftColWidth,
+      y: originY + frontLen + stairLen,
+      width: rightColWidth,
+      length: bathLen,
+      doors: [{ id: `${prefix}-gbd`, wall: 'left', offset: 1.5, width: 2.5 }],
+      windows: [{ id: `${prefix}-gbw`, wall: 'right', offset: 1.5, width: 2.0 }],
+    });
+
     return { level: lvl, floorName: 'Third Floor (Duplex Lower Level)', rooms: fRooms };
   };
 
   const generateDuplexUpperFloor = (lvl: number): FloorPlan => {
-    const fRooms: Room[] = [
-      {
-        id: `f${lvl}-void`,
-        name: 'Double-Height Void & Mezzanine Gallery (Open to Living Below)',
-        x: originX,
-        y: originY,
-        width: leftColWidth,
-        length: frontZoneLength,
-        doors: [{ id: `f${lvl}-vd`, wall: 'bottom', offset: 2.5, width: 3.0 }],
-        windows: [{ id: `f${lvl}-vw`, wall: 'top', offset: 2.5, width: 5.0 }],
-      },
-      {
-        id: `f${lvl}-lounge`,
-        name: 'Upper Family Lounge & TV Gallery',
-        x: originX,
-        y: originY + frontZoneLength,
-        width: leftColWidth,
-        length: midZoneLength,
-        doors: [{ id: `f${lvl}-ld`, wall: 'right', offset: 2, width: 3.0 }],
-        windows: [{ id: `f${lvl}-lw`, wall: 'left', offset: 2, width: 3.5 }],
-      },
-      {
-        id: `f${lvl}-master1`,
-        name: 'Executive Master Suite 1 (with Walk-in Dresser)',
-        x: originX + leftColWidth,
-        y: originY,
-        width: rightColWidth - 5,
-        length: frontZoneLength + midZoneLength,
-        doors: [{ id: `f${lvl}-m1d`, wall: 'left', offset: 3, width: 3.0 }],
-        windows: [{ id: `f${lvl}-m1w`, wall: 'right', offset: 3, width: 4.0 }],
-      },
-      {
-        id: `f${lvl}-masterbath1`,
-        name: 'Attached Luxury Master Bath 1',
-        x: originX + leftColWidth + rightColWidth - 5,
-        y: originY,
-        width: 5,
-        length: frontZoneLength + midZoneLength,
-        doors: [{ id: `f${lvl}-m1bd`, wall: 'left', offset: 2, width: 2.5 }],
-        windows: [{ id: `f${lvl}-m1bw`, wall: 'right', offset: 2, width: 2.0 }],
-      },
-      {
-        id: `f${lvl}-master2`,
-        name: 'Executive Master Suite 2 (with Private Balcony)',
-        x: originX,
-        y: originY + frontZoneLength + midZoneLength,
-        width: leftColWidth,
-        length: rearZoneLength,
-        doors: [{ id: `f${lvl}-m2d`, wall: 'top', offset: 2, width: 3.0 }],
-        windows: [{ id: `f${lvl}-m2w`, wall: 'bottom', offset: 2.5, width: 4.0 }],
-      },
-      {
-        id: `f${lvl}-masterbath2`,
-        name: 'Attached Luxury Master Bath 2',
-        x: originX + leftColWidth,
-        y: originY + frontZoneLength + midZoneLength,
-        width: Math.floor(rightColWidth * 0.48),
-        length: rearZoneLength,
-        doors: [{ id: `f${lvl}-m2bd`, wall: 'left', offset: 1.5, width: 2.5 }],
-        windows: [{ id: `f${lvl}-m2bw`, wall: 'bottom', offset: 1.5, width: 2.0 }],
-      },
-      {
-        id: `f${lvl}-staircore`,
-        name: 'Main Staircase & Lift Core Lobby',
-        x: originX + leftColWidth + Math.floor(rightColWidth * 0.48),
-        y: originY + frontZoneLength + midZoneLength,
-        width: rightColWidth - Math.floor(rightColWidth * 0.48),
-        length: rearZoneLength,
-        doors: [{ id: `f${lvl}-sd`, wall: 'left', offset: 1.5, width: 3.0 }],
-        windows: [{ id: `f${lvl}-sw`, wall: 'right', offset: 1.5, width: 2.5 }],
-      },
-    ];
+    const fRooms: Room[] = [];
+    const prefix = `f${lvl}`;
+
+    const voidLen = Math.max(Math.floor(buildableLength * 0.25), 4);
+    const remainLen = buildableLength - voidLen;
+    const suite1Len = Math.floor(remainLen * 0.5);
+    const suite2Len = remainLen - suite1Len;
+
+    let bath1Len = Math.max(Math.floor(remainLen * 0.3), 4);
+    let stairLen = Math.max(Math.floor(remainLen * 0.38), 5);
+    let bath2Len = remainLen - bath1Len - stairLen;
+    if (bath2Len < 3) {
+      bath1Len = Math.floor(remainLen * 0.28);
+      stairLen = Math.floor(remainLen * 0.34);
+      bath2Len = remainLen - bath1Len - stairLen;
+    }
+
+    // Left Column (Width >= 12'-0" to 14'-0"):
+    // 1. Double-Height Void
+    fRooms.push({
+      id: `${prefix}-void`,
+      name: 'Double-Height Void & Mezzanine Gallery (Open to Living Below)',
+      x: originX,
+      y: originY,
+      width: leftColWidth,
+      length: voidLen,
+      doors: [{ id: `${prefix}-vd`, wall: 'right', offset: 2.5, width: 3.0 }],
+      windows: [{ id: `${prefix}-vw`, wall: 'top', offset: 2.5, width: Math.min(leftColWidth - 2, 5.0) }],
+    });
+
+    // 2. Executive Master Suite 1
+    fRooms.push({
+      id: `${prefix}-master1`,
+      name: 'Executive Master Suite 1 (with Walk-in Dresser)',
+      x: originX,
+      y: originY + voidLen,
+      width: leftColWidth,
+      length: suite1Len,
+      doors: [
+        { id: `${prefix}-m1d`, wall: 'right', offset: 2.5, width: 3.0 },
+        { id: `${prefix}-m1bd`, wall: 'right', offset: Math.max(suite1Len - 3, 2), width: 2.5 },
+      ],
+      windows: [{ id: `${prefix}-m1w`, wall: 'left', offset: 3, width: 4.0 }],
+    });
+
+    // 3. Executive Master Suite 2
+    fRooms.push({
+      id: `${prefix}-master2`,
+      name: 'Executive Master Suite 2 (with Private Balcony)',
+      x: originX,
+      y: originY + voidLen + suite1Len,
+      width: leftColWidth,
+      length: suite2Len,
+      doors: [
+        { id: `${prefix}-m2d`, wall: 'right', offset: 2.5, width: 3.0 },
+        { id: `${prefix}-m2bd`, wall: 'right', offset: Math.max(suite2Len - 3, 2), width: 2.5 },
+      ],
+      windows: [
+        { id: `${prefix}-m2w`, wall: 'bottom', offset: 2.5, width: Math.min(leftColWidth - 2, 4.5) },
+        { id: `${prefix}-m2w-side`, wall: 'left', offset: 3, width: 4.0 },
+      ],
+    });
+
+    // Right Column (Width >= 6.5' to 8.0' - full column width for each zone sequentially!):
+    // 4. Upper Family Lounge & TV Gallery
+    fRooms.push({
+      id: `${prefix}-lounge`,
+      name: 'Upper Family Lounge & TV Gallery',
+      x: originX + leftColWidth,
+      y: originY,
+      width: rightColWidth,
+      length: voidLen,
+      doors: [{ id: `${prefix}-ld`, wall: 'left', offset: 2, width: 3.0 }],
+      windows: [{ id: `${prefix}-lw`, wall: 'right', offset: 2, width: 3.0 }],
+    });
+
+    // 5. Attached Luxury Master Bath 1
+    fRooms.push({
+      id: `${prefix}-masterbath1`,
+      name: 'Attached Luxury Master Bath 1',
+      x: originX + leftColWidth,
+      y: originY + voidLen,
+      width: rightColWidth,
+      length: bath1Len,
+      doors: [{ id: `${prefix}-b1d`, wall: 'left', offset: 1.5, width: 2.5 }],
+      windows: [{ id: `${prefix}-b1w`, wall: 'right', offset: 1.5, width: 2.0 }],
+    });
+
+    // 6. Main Staircase & Lift Core Lobby
+    fRooms.push({
+      id: `${prefix}-staircore`,
+      name: 'Main Staircase & Lift Core Lobby',
+      x: originX + leftColWidth,
+      y: originY + voidLen + bath1Len,
+      width: rightColWidth,
+      length: stairLen,
+      doors: [{ id: `${prefix}-sd`, wall: 'left', offset: 1.5, width: 3.0 }],
+      windows: [{ id: `${prefix}-sw`, wall: 'right', offset: 1.5, width: 2.5 }],
+    });
+
+    // 7. Attached Luxury Master Bath 2
+    fRooms.push({
+      id: `${prefix}-masterbath2`,
+      name: 'Attached Luxury Master Bath 2',
+      x: originX + leftColWidth,
+      y: originY + voidLen + bath1Len + stairLen,
+      width: rightColWidth,
+      length: bath2Len,
+      doors: [{ id: `${prefix}-b2d`, wall: 'left', offset: 1.5, width: 2.5 }],
+      windows: [{ id: `${prefix}-b2w`, wall: 'right', offset: 1.5, width: 2.0 }],
+    });
+
     return { level: lvl, floorName: 'Fourth Floor (Duplex Upper Level)', rooms: fRooms };
   };
 
   const generatePenthouseFloor = (lvl: number): FloorPlan => {
-    const fRooms: Room[] = [
-      {
-        id: `f${lvl}-master-suite`,
-        name: 'Spacious Penthouse Master Suite',
-        x: originX,
-        y: originY,
-        width: leftColWidth,
-        length: frontZoneLength + midZoneLength,
-        doors: [{ id: `f${lvl}-pd`, wall: 'right', offset: 3, width: 3.5 }],
-        windows: [{ id: `f${lvl}-pw`, wall: 'top', offset: 3, width: 5.0 }],
-      },
-      {
-        id: `f${lvl}-master-bath`,
-        name: 'Attached Luxury Spa Bath & Dressing Room',
-        x: originX,
-        y: originY + frontZoneLength + midZoneLength,
-        width: leftColWidth,
-        length: rearZoneLength,
-        doors: [{ id: `f${lvl}-pbd`, wall: 'top', offset: 2, width: 2.5 }],
-        windows: [{ id: `f${lvl}-pbw`, wall: 'bottom', offset: 2, width: 3.0 }],
-      },
-      {
-        id: `f${lvl}-terrace`,
-        name: 'Open Sky Landscaped Terrace Garden',
-        x: originX + leftColWidth,
-        y: originY,
-        width: rightColWidth,
-        length: frontZoneLength + midZoneLength,
-        doors: [{ id: `f${lvl}-td`, wall: 'left', offset: 3, width: 3.5 }],
-        windows: [],
-      },
-      {
-        id: `f${lvl}-bar`,
-        name: 'Covered Cocktail Bar Counter & Pergola Sit-out',
-        x: originX + leftColWidth,
-        y: originY + frontZoneLength + midZoneLength,
-        width: Math.floor(rightColWidth * 0.55),
-        length: rearZoneLength,
-        doors: [{ id: `f${lvl}-bard`, wall: 'left', offset: 1.5, width: 2.5 }],
-        windows: [{ id: `f${lvl}-barw`, wall: 'bottom', offset: 1.5, width: 2.5 }],
-      },
-      {
-        id: `f${lvl}-core`,
-        name: 'Staircase Mumty & Lift Machine Room Core',
-        x: originX + leftColWidth + Math.floor(rightColWidth * 0.55),
-        y: originY + frontZoneLength + midZoneLength,
-        width: rightColWidth - Math.floor(rightColWidth * 0.55),
-        length: rearZoneLength,
-        doors: [{ id: `f${lvl}-core-d`, wall: 'left', offset: 1.5, width: 3.0 }],
-        windows: [{ id: `f${lvl}-core-w`, wall: 'right', offset: 1.5, width: 2.5 }],
-      },
-    ];
+    const fRooms: Room[] = [];
+    const prefix = `f${lvl}`;
+
+    const terraceLen = Math.max(Math.floor(buildableLength * 0.4), 6);
+    const rearLen = buildableLength - terraceLen;
+    const masterLen = Math.max(Math.floor(rearLen * 0.65), 5);
+    const bathLen = rearLen - masterLen;
+
+    const stairLen = Math.max(Math.floor(rearLen * 0.55), 4);
+    const powderLen = rearLen - stairLen;
+
+    // Left Column (Width >= 12'-0" to 14'-0"):
+    // 1. Open Sky Landscaped Terrace Garden
+    fRooms.push({
+      id: `${prefix}-terrace`,
+      name: 'Open Sky Landscaped Terrace Garden',
+      x: originX,
+      y: originY,
+      width: leftColWidth,
+      length: terraceLen,
+      doors: [{ id: `${prefix}-td`, wall: 'bottom', offset: Math.floor(leftColWidth / 2), width: 4.0 }],
+      windows: [],
+    });
+
+    // 2. Spacious Penthouse Master Suite
+    fRooms.push({
+      id: `${prefix}-master-suite`,
+      name: 'Spacious Penthouse Master Suite',
+      x: originX,
+      y: originY + terraceLen,
+      width: leftColWidth,
+      length: masterLen,
+      doors: [
+        { id: `${prefix}-pd-terrace`, wall: 'top', offset: Math.floor(leftColWidth / 2), width: 4.0 },
+        { id: `${prefix}-pd-bath`, wall: 'bottom', offset: 2.0, width: 2.5 },
+        { id: `${prefix}-pd-core`, wall: 'right', offset: 2.0, width: 3.0 },
+      ],
+      windows: [
+        { id: `${prefix}-pw-side`, wall: 'left', offset: 3, width: 4.0 },
+      ],
+    });
+
+    // 3. Attached Luxury Spa Bath & Dressing Room
+    fRooms.push({
+      id: `${prefix}-master-bath`,
+      name: 'Attached Luxury Spa Bath & Dressing Room',
+      x: originX,
+      y: originY + terraceLen + masterLen,
+      width: leftColWidth,
+      length: bathLen,
+      doors: [{ id: `${prefix}-pbd`, wall: 'top', offset: 2.0, width: 2.5 }],
+      windows: [{ id: `${prefix}-pbw`, wall: 'bottom', offset: 2.0, width: 3.0 }],
+    });
+
+    // Right Column (Width >= 6.5' to 8.0' - full column width for each zone sequentially!):
+    // 4. Covered Cocktail Bar Counter & Pergola Sit-out
+    fRooms.push({
+      id: `${prefix}-bar`,
+      name: 'Covered Cocktail Bar Counter & Pergola Sit-out',
+      x: originX + leftColWidth,
+      y: originY,
+      width: rightColWidth,
+      length: terraceLen,
+      doors: [{ id: `${prefix}-bard`, wall: 'left', offset: 2.0, width: 3.0 }],
+      windows: [{ id: `${prefix}-barw`, wall: 'right', offset: 2.0, width: 3.0 }],
+    });
+
+    // 5. Staircase Mumty & Lift Machine Room Core
+    fRooms.push({
+      id: `${prefix}-core`,
+      name: 'Staircase Mumty & Lift Machine Room Core',
+      x: originX + leftColWidth,
+      y: originY + terraceLen,
+      width: rightColWidth,
+      length: stairLen,
+      doors: [{ id: `${prefix}-core-d`, wall: 'left', offset: 1.5, width: 3.0 }],
+      windows: [{ id: `${prefix}-core-w`, wall: 'right', offset: 1.5, width: 2.5 }],
+    });
+
+    // 6. Terrace Powder Room & Bar Washroom
+    fRooms.push({
+      id: `${prefix}-powder`,
+      name: 'Terrace Powder Room & Bar Washroom',
+      x: originX + leftColWidth,
+      y: originY + terraceLen + stairLen,
+      width: rightColWidth,
+      length: powderLen,
+      doors: [{ id: `${prefix}-pwd`, wall: 'left', offset: 1.5, width: 2.5 }],
+      windows: [{ id: `${prefix}-pww`, wall: 'right', offset: 1.5, width: 2.0 }],
+    });
+
     return { level: lvl, floorName: 'Fifth Floor (Penthouse & Sky Bar Terrace)', rooms: fRooms };
   };
 
   // 3. GROUND FLOOR (Level 0)
   if (isStiltParkingGround) {
     const gardenLength = 6; // Exact 6*20 as requested by user
-    const gardenWidth = Math.min(20, buildableWidth);
-    const washroomWidth = Math.max(buildableWidth - gardenWidth, 4);
-    const washroomLength = gardenLength;
-
+    const gardenWidth = buildableWidth; // 20' exact buildable width
     const parkingLength = buildableLength - gardenLength;
-    const stiltCoreWidth = Math.min(Math.max(Math.floor(buildableWidth * 0.28), 6), 8);
-    const parkingWidth = buildableWidth - stiltCoreWidth;
+    const stiltCoreWidth = rightColWidth; // e.g. 7'
+    const parkingWidth = leftColWidth; // e.g. 13'
+    const washroomLen = Math.min(Math.max(Math.floor(parkingLength * 0.25), 6.0), 7.5);
+    const coreLen = parkingLength - washroomLen;
 
     const groundRooms: Room[] = [
       {
@@ -507,7 +641,7 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
         y: originY,
         width: parkingWidth,
         length: parkingLength,
-        doors: [{ id: 'gd-stilt-gate', wall: 'top', offset: 3, width: 8.0 }],
+        doors: [{ id: 'gd-stilt-gate', wall: 'top', offset: 2.5, width: Math.min(parkingWidth - 2, 8.0) }],
         windows: [],
       },
       {
@@ -516,29 +650,29 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
         x: originX + parkingWidth,
         y: originY,
         width: stiltCoreWidth,
-        length: parkingLength,
+        length: coreLen,
         doors: [{ id: 'gd-core-in', wall: 'left', offset: 2.5, width: 3.0 }],
         windows: [{ id: 'gw-core-side', wall: 'right', offset: 2.5, width: 2.5 }],
       },
       {
+        id: 'g-guard-washroom',
+        name: 'Driver / Guard Washroom & Powder Toilet',
+        x: originX + parkingWidth,
+        y: originY + coreLen,
+        width: stiltCoreWidth,
+        length: washroomLen,
+        doors: [{ id: 'gd-wash-in', wall: 'left', offset: 1.5, width: 2.5 }],
+        windows: [{ id: 'gw-wash-vent', wall: 'right', offset: 1.5, width: 2.0 }],
+      },
+      {
         id: 'g-rear-garden',
-        name: "Backyard Garden Lawn (6' × 20')",
+        name: `Backyard Landscaped Garden Lawn (${gardenLength}' × ${gardenWidth}')`,
         x: originX,
         y: originY + parkingLength,
         width: gardenWidth,
         length: gardenLength,
-        doors: [{ id: 'gd-garden-out', wall: 'top', offset: 2, width: 3.0 }],
+        doors: [{ id: 'gd-garden-out', wall: 'top', offset: Math.floor(gardenWidth / 2), width: 3.0 }],
         windows: [],
-      },
-      {
-        id: 'g-guard-washroom',
-        name: 'Driver / Guard Washroom & Powder Toilet',
-        x: originX + gardenWidth,
-        y: originY + parkingLength,
-        width: washroomWidth,
-        length: washroomLength,
-        doors: [{ id: 'gd-wash-in', wall: 'left', offset: 1.5, width: 2.5 }],
-        windows: [{ id: 'gw-wash-vent', wall: 'right', offset: 1.5, width: 2.0 }],
       },
     ];
 
@@ -684,12 +818,12 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
   // 4. FIRST FLOOR (Level 1)
   if (floorsCount >= 2) {
     if (isFourRoomFloor) {
-      floors.push(generateFourRoomFloor(1, 'First Floor Plan (4 Bed + 4 Bath)'));
+      floors.push(generateMasterSuitesFloor(1, 'First Floor Plan (Master Suites 1 & 2)', 1));
     } else {
       const fBalconyLength = Math.max(Math.floor(frontZoneLength * 0.45), 5);
       const fBathLength = frontZoneLength - fBalconyLength;
-      const bathWidth = Math.min(Math.max(Math.floor(rightColWidth * 0.44), 5), 7);
-      const stairWidth = rightColWidth - bathWidth;
+      const bathLen = Math.min(Math.max(Math.floor(rearZoneLength * 0.45), 6.5), 7.5);
+      const stairLen = rearZoneLength - bathLen;
 
       const firstRooms: Room[] = [
         {
@@ -760,19 +894,19 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
           name: 'Attached Bathroom & Toilet',
           x: originX + leftColWidth,
           y: originY + frontZoneLength + midZoneLength,
-          width: bathWidth,
-          length: rearZoneLength,
+          width: rightColWidth,
+          length: bathLen,
           doors: [{ id: 'fd-bath2', wall: 'left', offset: 2, width: 2.5 }],
-          windows: [{ id: 'fw-bath2', wall: 'bottom', offset: 1.5, width: 2.5 }],
+          windows: [{ id: 'fw-bath2', wall: 'right', offset: 1.5, width: 2.5 }],
         },
         {
           id: 'f-stair',
           name: 'Staircase Core',
-          x: originX + leftColWidth + bathWidth,
-          y: originY + frontZoneLength + midZoneLength,
-          width: stairWidth,
-          length: rearZoneLength,
-          doors: [{ id: 'fd-stair', wall: 'top', offset: 1.5, width: 3.0 }],
+          x: originX + leftColWidth,
+          y: originY + frontZoneLength + midZoneLength + bathLen,
+          width: rightColWidth,
+          length: stairLen,
+          doors: [{ id: 'fd-stair', wall: 'left', offset: 1.5, width: 3.0 }],
           windows: [{ id: 'fw-stair', wall: 'right', offset: 2, width: 3.0 }],
         },
       ];
@@ -783,7 +917,7 @@ function generateDynamicArchitecturalFloors(config: LayoutConfig): FloorPlan[] {
   // 5. SECOND FLOOR (Level 2)
   if (floorsCount >= 3) {
     if (isFourRoomFloor) {
-      floors.push(generateFourRoomFloor(2, 'Second Floor Plan (4 Bed + 4 Bath)'));
+      floors.push(generateMasterSuitesFloor(2, 'Second Floor Plan (Master Suites 3 & 4)', 3));
     } else {
       const bathWidth = Math.min(Math.max(Math.floor(rightColWidth * 0.44), 5), 7);
       const sRoomName = wantsGym ? 'Fitness Gym & Yoga Room' : wantsTheatre ? 'Private Home Theatre & Media Hall' : 'Executive Study & Home Office';
