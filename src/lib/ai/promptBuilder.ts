@@ -33,8 +33,8 @@ MANDATORY REGULATORY SETBACKS & BYLAWS:
 
 CLIENT REQUIREMENTS:
 - Number of floors: ${data.requirements.floors} floors (Generate exactly ${data.requirements.floors} distinct floor levels in the 'floors' array: Level 0 = Ground Floor, Level 1 = First Floor, etc.)
-- Bedrooms: ${data.requirements.bedrooms} total across floors
-- Bathrooms: ${data.requirements.bathrooms} total across floors
+- Bedrooms: EXACTLY ${data.requirements.bedrooms} total across ALL floors combined! (CRITICAL: Do NOT generate more than ${data.requirements.bedrooms} bedrooms in total. For example, if 3 bedrooms are requested, only 3 rooms in the entire house should be bedrooms. Do not put bedrooms on every level of a multi-story building).
+- Bathrooms: EXACTLY ${data.requirements.bathrooms} total across ALL floors combined!
 - Kitchen: ${data.requirements.kitchenType}
 - Parking: ${data.requirements.parkingSpots} car(s)
 - Pooja Room: ${data.requirements.hasPoojaRoom ? 'Yes (mandir in North-East corner)' : 'No'}
@@ -42,7 +42,12 @@ CLIENT REQUIREMENTS:
 - Target Budget: ${data.budget.range} (${data.budget.qualityTier} finish)
 
 ARCHITECTURAL RULES FOR EACH FLOOR:
-1. Provide a realistic layout with clear circulation: Foyer/Porch, Drawing/Living, Dining, Kitchen, Bedrooms with attached Bathrooms, Powder Room, Balconies, and Staircase.
+1. VERTICAL FUNCTIONAL ZONING: For multi-story homes (3 to 6 floors), follow standard vertical zoning:
+   - Ground Level: Arrival, parking, entrance foyer, lift core, utility, and rear garden lawn. (Zero bedrooms unless 1-story).
+   - First Level: Grand formal living / drawing, front balcony, open kitchen, dining, powder room. (Zero bedrooms).
+   - Second Level: Family entertainment, cinema lounge, study, gym, or first bedroom suite.
+   - Upper Levels: Exclusive private bedroom suites with attached baths, walk-in closets, and balconies.
+   - Top Level: Grand Master Penthouse Suite with open sky terrace and cocktail pergola.
 2. PRACTICAL ROOM SIZES (MANDATORY): Any bedroom or living room MUST have a minimum width of 9'-0" to 14'-0". NEVER create narrow 4ft or 5ft wide bedrooms.
 3. STAIRCASE & CIRCULATION: Central stair lobby must be horizontally oriented to differentiate front and back wings (min 7ft wide), never dividing the width into narrow vertical strips.
 4. Every room must have non-overlapping coordinates (x, y, width, length in feet) fitting strictly inside the buildable plot envelope after setbacks.

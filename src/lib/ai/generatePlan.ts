@@ -5,6 +5,7 @@ import { getRegulatoryRules } from '../regulatory/engine';
 import { buildHousePlanPrompt } from './promptBuilder';
 import { calculateDetailedBOQ } from '../rates/calculator';
 import { getManualG5Plan } from './manualG5Plan';
+import { generateArchitecturalLayout } from './architecturalPlanner';
 
 interface LayoutConfig {
   plotWidth: number;
@@ -1257,7 +1258,8 @@ export async function generateHousePlan(formData: WizardFormData, apiKey?: strin
     (wish.includes('duplex') || wish.includes('double height') || wish.includes('double heighted')) &&
     (wish.includes('penthouse') || wish.includes('5th') || wish.includes('bar'));
 
-  if (isCustomG5DuplexLayout) {
+  // Only return the specialized 4-room duplex manual plan if explicitly requested in custom wishlist AND bedrooms >= 6
+  if (isCustomG5DuplexLayout && (formData.customWishlist?.includes('4 separate') || formData.requirements.bedrooms >= 6)) {
     return getManualG5Plan();
   }
 
@@ -1372,62 +1374,83 @@ export async function generateHousePlan(formData: WizardFormData, apiKey?: strin
 
         const allRooms = parsedFloors.flatMap((f: any) => f.rooms);
 
-        const mergedPlan: HousePlan = {
-          customWishlist: formData.customWishlist || '',
-          plot: {
-            width: formData.plot.width,
-            length: formData.plot.length,
-            facing: formData.plot.facing,
-            area: plotArea,
-          },
-          setbacks: rawJson.setbacks || { front: 10, rear: 6.5, left: 3, right: 3 },
-          floors: parsedFloors,
-          structural: {
-            columns: [
-              { id: 'c1', x: 0, y: 0, sizeInches: [9, 12] },
-              { id: 'c2', x: formData.plot.width, y: 0, sizeInches: [9, 12] },
-              { id: 'c3', x: 0, y: formData.plot.length, sizeInches: [9, 12] },
-              { id: 'c4', x: formData.plot.width, y: formData.plot.length, sizeInches: [9, 12] },
-            ],
-            beams: [{ id: 'b1', startColumnId: 'c1', endColumnId: 'c2' }],
-            footingType: 'Isolated RCC Column Footing (5ft depth)',
-            slabType: 'M25 Reinforced Concrete 5.5-inch Slab',
-          },
-          electrical: {
-            pointsByRoom: allRooms.map((r: any) => ({
-              roomId: r.id,
-              lightPoints: 4,
-              fanPoints: 2,
-              powerSockets: 4,
-            })),
-          },
-          plumbing: {
-            inletPoints: [{ x: 5, y: 5, type: 'Municipal Fresh Supply (1-inch GI Line)' }],
-            outletPoints: [{ x: 5, y: formData.plot.length, type: 'Inspection Chamber Connection (4-inch PVC)' }],
-          },
-          budget: boq,
-          facade: {
-            style: formData.preferences.style,
-            features: rawJson.facade?.features || [
-              'Modern Balcony Toughened Glass Railing',
-              'Double Height Grand Entryway with Granite Cladding',
-              'Louvered Exterior Panels for Sun Shading',
-            ],
-            exteriorMaterial: rawJson.facade?.exteriorMaterial || 'Textured Weather-Shield Plaster with Stone Accents',
-          },
-          regulatory: {
-            far: Math.max(Number((builtUpArea / plotArea).toFixed(2)), 0.1),
-            groundCoverage,
-            builtUpArea,
-            violations: [],
-          },
-        };
+        // Architectural Sanity Check on Gemini's output
+        const generatedBeds = allRooms.filter((r: any) =>
+          r.name.toLowerCase().includes('bed') || r.name.toLowerCase().includes('suite')
+        ).length;
+        const hasExcessBedrooms = generatedBeds > formData.requirements.bedrooms + 1;
+        const hasNarrowHabitableRooms = allRooms.some((r: any) =>
+          (r.name.toLowerCase().includes('bed') || r.name.toLowerCase().includes('living')) &&
+          (r.width < 8.5 || r.length < 8.5)
+        );
 
-        const validated = housePlanZodSchema.safeParse(mergedPlan);
-        if (validated.success) {
-          return validated.data as HousePlan;
+        if (!hasExcessBedrooms && !hasNarrowHabitableRooms) {
+          const sBacks = rawJson.setbacks || { front: 10, rear: 6.5, left: 3, right: 3 };
+          const bW = Math.max(formData.plot.width - sBacks.left - sBacks.right, 12);
+          const bL = Math.max(formData.plot.length - sBacks.front - sBacks.rear, 16);
+          const layoutFrame = generateArchitecturalLayout({
+            plotWidth: formData.plot.width,
+            plotLength: formData.plot.length,
+            buildableWidth: bW,
+            buildableLength: bL,
+            originX: sBacks.left,
+            originY: sBacks.front,
+            floorsCount: formData.requirements.floors,
+            bedroomsCount: formData.requirements.bedrooms,
+            bathroomsCount: formData.requirements.bathrooms,
+            hasPooja: formData.requirements.hasPoojaRoom,
+            hasParking: formData.requirements.parkingSpots > 0,
+            hasTerrace: formData.requirements.hasTerrace,
+            hasBasement: formData.requirements.hasBasement,
+            wishlist: formData.customWishlist || '',
+          });
+
+          const mergedPlan: HousePlan = {
+            customWishlist: formData.customWishlist || '',
+            plot: {
+              width: formData.plot.width,
+              length: formData.plot.length,
+              facing: formData.plot.facing,
+              area: plotArea,
+            },
+            setbacks: sBacks,
+            floors: parsedFloors,
+            structural: layoutFrame.structural,
+            electrical: {
+              pointsByRoom: allRooms.map((r: any) => ({
+                roomId: r.id,
+                lightPoints: Math.max(Math.floor((r.width * r.length) / 45), 2),
+                fanPoints: r.name.toLowerCase().includes('bath') ? 0 : 1,
+                powerSockets: Math.max(Math.floor((r.width * r.length) / 50), 2),
+              })),
+            },
+            plumbing: layoutFrame.plumbing,
+            budget: boq,
+            facade: {
+              style: formData.preferences.style,
+              features: rawJson.facade?.features || [
+                'Modern Balcony Toughened Glass Railing',
+                'Double Height Grand Entryway with Granite Cladding',
+                'Louvered Exterior Panels for Sun Shading',
+              ],
+              exteriorMaterial: rawJson.facade?.exteriorMaterial || 'Textured Weather-Shield Plaster with Stone Accents',
+            },
+            regulatory: {
+              far: Math.max(Number((builtUpArea / plotArea).toFixed(2)), 0.1),
+              groundCoverage,
+              builtUpArea,
+              violations: [],
+            },
+          };
+
+          const validated = housePlanZodSchema.safeParse(mergedPlan);
+          if (validated.success) {
+            return validated.data as HousePlan;
+          } else {
+            console.warn('Gemini plan validation failed:', validated.error.flatten());
+          }
         } else {
-          console.warn('Gemini plan validation failed:', validated.error.flatten());
+          console.warn(`Gemini output rejected due to architectural constraints (beds: ${generatedBeds} vs req: ${formData.requirements.bedrooms}, narrow: ${hasNarrowHabitableRooms}). Falling back to precision architectural layout.`);
         }
       }
     } catch (e) {
@@ -1448,7 +1471,7 @@ export async function generateHousePlan(formData: WizardFormData, apiKey?: strin
   const totalBuiltUpArea = builtUpAreaPerFloor * Math.max(effectiveReqs.floors, 1);
   const boq = calculateDetailedBOQ(totalBuiltUpArea, formData.plot.city, formData.budget.qualityTier);
 
-  const floors = generateDynamicArchitecturalFloors({
+  const layoutResult = generateArchitecturalLayout({
     plotWidth: formData.plot.width,
     plotLength: formData.plot.length,
     buildableWidth,
@@ -1465,6 +1488,33 @@ export async function generateHousePlan(formData: WizardFormData, apiKey?: strin
     wishlist: formData.customWishlist || '',
   });
 
+  const isSpecialWishlist =
+    formData.customWishlist &&
+    (formData.customWishlist.toLowerCase().includes('duplex type') ||
+      formData.customWishlist.toLowerCase().includes('infinity terrace') ||
+      formData.customWishlist.toLowerCase().includes('1st n 2nd floor will consist of 4'));
+
+  const floors = isSpecialWishlist
+    ? generateDynamicArchitecturalFloors({
+        plotWidth: formData.plot.width,
+        plotLength: formData.plot.length,
+        buildableWidth,
+        buildableLength,
+        originX: setbacks.sideMinFt,
+        originY: setbacks.frontMinFt,
+        floorsCount: Math.max(effectiveReqs.floors, 1),
+        bedroomsCount: effectiveReqs.bedrooms,
+        bathroomsCount: effectiveReqs.bathrooms,
+        hasPooja: effectiveReqs.hasPoojaRoom,
+        hasParking: effectiveReqs.parkingSpots > 0,
+        hasTerrace: effectiveReqs.hasTerrace,
+        hasBasement: effectiveReqs.hasBasement,
+        wishlist: formData.customWishlist || '',
+      })
+    : layoutResult.floors;
+
+  const structural = layoutResult.structural;
+  const plumbing = layoutResult.plumbing;
   const allRooms = floors.flatMap((f) => f.rooms);
 
   const generatedPlan: HousePlan = {
@@ -1482,57 +1532,31 @@ export async function generateHousePlan(formData: WizardFormData, apiKey?: strin
       right: setbacks.sideMinFt,
     },
     floors,
-    structural: {
-      columns: [
-        { id: 'c1', x: setbacks.sideMinFt, y: setbacks.frontMinFt, sizeInches: [9, 12] },
-        { id: 'c2', x: setbacks.sideMinFt + Math.floor(buildableWidth / 2), y: setbacks.frontMinFt, sizeInches: [9, 12] },
-        { id: 'c3', x: setbacks.sideMinFt + buildableWidth, y: setbacks.frontMinFt, sizeInches: [9, 12] },
-        { id: 'c4', x: setbacks.sideMinFt, y: setbacks.frontMinFt + Math.floor(buildableLength / 2), sizeInches: [9, 12] },
-        { id: 'c5', x: setbacks.sideMinFt + buildableWidth, y: setbacks.frontMinFt + Math.floor(buildableLength / 2), sizeInches: [9, 12] },
-        { id: 'c6', x: setbacks.sideMinFt, y: setbacks.frontMinFt + buildableLength, sizeInches: [9, 12] },
-        { id: 'c7', x: setbacks.sideMinFt + Math.floor(buildableWidth / 2), y: setbacks.frontMinFt + buildableLength, sizeInches: [9, 12] },
-        { id: 'c8', x: setbacks.sideMinFt + buildableWidth, y: setbacks.frontMinFt + buildableLength, sizeInches: [9, 12] },
-      ],
-      beams: [
-        { id: 'b1', startColumnId: 'c1', endColumnId: 'c3' },
-        { id: 'b2', startColumnId: 'c4', endColumnId: 'c5' },
-        { id: 'b3', startColumnId: 'c6', endColumnId: 'c8' },
-      ],
-      footingType: 'Isolated RCC Pad Footing (4.5ft depth below NGL)',
-      slabType: 'M25 Reinforced Concrete 5-inch Slab with Fe500D TMT',
-    },
+    structural,
     electrical: {
       pointsByRoom: allRooms.map((r) => ({
         roomId: r.id,
-        lightPoints: Math.max(Math.floor((r.width * r.length) / 50), 2),
+        lightPoints: Math.max(Math.floor((r.width * r.length) / 45), 2),
         fanPoints: r.name.toLowerCase().includes('bath') ? 0 : 1,
-        powerSockets: Math.max(Math.floor((r.width * r.length) / 60), 2),
+        powerSockets: Math.max(Math.floor((r.width * r.length) / 50), 2),
       })),
     },
-    plumbing: {
-      inletPoints: [
-        { x: setbacks.sideMinFt + 2, y: setbacks.frontMinFt + Math.floor(buildableLength * 0.4), type: 'Municipal Fresh Water Inlet' },
-        { x: setbacks.sideMinFt + 4, y: setbacks.frontMinFt + Math.floor(buildableLength * 0.8), type: 'Overhead Tank Gravity Supply' },
-      ],
-      outletPoints: [
-        { x: setbacks.sideMinFt, y: formData.plot.length, type: 'Main Sewer Gully Trap' },
-        { x: formData.plot.width - setbacks.sideMinFt, y: formData.plot.length, type: 'Storm Water Drain Line' },
-      ],
-    },
+    plumbing,
     budget: boq,
     facade: {
       style: formData.preferences.style,
       features: [
-        'Contemporary Balcony Glass Railing with MS Balusters',
-        'Large Louvered Ventilation Windows for Cross-Breeze',
-        'Texture Painted Parapet Band with Weather-Shield Coating',
-        'Granite Tiled Main Portico Entrance',
+        'Full-Height Structural Glazing Curtain Wall on Front Facade',
+        'Toughened Frameless Glass Balconies with SS 316 Concealed Base Shoes',
+        'Terracotta CNC Louvered Privacy Screens for Solar Heat Shading',
+        'Top Pergola Roof with Integrated Warm Architectural Cove Downlighters',
+        'Rear Vertical Landscaped Green Garden Lightwell',
       ],
-      exteriorMaterial: 'Double-coat plaster with silicone exterior emulsion & stone highlights',
+      exteriorMaterial: 'Italian Travertine cladding with Asian Paints Apex Ultima weather-shield silicone finish',
     },
     regulatory: {
       far: Math.max(Number((totalBuiltUpArea / plotArea).toFixed(2)), 0.1),
-      groundCoverage: Math.max(Number(((builtUpAreaPerFloor / plotArea) * 100).toFixed(1)), 1),
+      groundCoverage: Math.max(Math.min(Number(((builtUpAreaPerFloor / plotArea) * 100).toFixed(1)), 85), 10),
       builtUpArea: totalBuiltUpArea,
       violations: [],
     },
