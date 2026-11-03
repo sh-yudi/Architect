@@ -9,6 +9,11 @@ import { FloorPlanSVG } from '@/components/floorplan/FloorPlanSVG';
 import { ThreeDViewer } from '@/components/viewer3d/ThreeDViewer';
 import { BudgetTable } from '@/components/dashboard/BudgetTable';
 import { RegulatoryCard } from '@/components/dashboard/RegulatoryCard';
+import { StructuralGridSheet } from '@/components/sheets/StructuralGridSheet';
+import { FoundationRCCSheet } from '@/components/sheets/FoundationRCCSheet';
+import { DoorWindowScheduleSheet } from '@/components/sheets/DoorWindowScheduleSheet';
+import { MEPServicesSheet } from '@/components/sheets/MEPServicesSheet';
+import { FrontElevationSheet } from '@/components/sheets/FrontElevationSheet';
 import {
   getPlanHistory,
   getPlanHistoryItem,
@@ -25,9 +30,12 @@ export default function ProjectDetailsPage() {
   const [plan, setPlan] = useState<HousePlan | null>(null);
   const [formData, setFormData] = useState<WizardFormData | null>(null);
   const [history, setHistory] = useState<PlanHistoryItem[]>([]);
-  const [activeTab, setActiveTab] = useState<'2d' | '3d' | 'budget' | 'regulatory' | 'history'>('2d');
+  const [activeTab, setActiveTab] = useState<
+    '2d' | 'structural' | 'foundation' | 'openings' | 'services' | 'elevation' | '3d' | 'budget' | 'regulatory' | 'history'
+  >('2d');
   const [isExportingCAD, setIsExportingCAD] = useState(false);
   const [isExportingAffidavit, setIsExportingAffidavit] = useState(false);
+  const [isExportingBlueprint, setIsExportingBlueprint] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && id) {
@@ -226,6 +234,26 @@ export default function ProjectDetailsPage() {
     }
   };
 
+  const handleDownloadBlueprintPDF = async () => {
+    if (isExportingBlueprint) return;
+    setIsExportingBlueprint(true);
+    try {
+      const res = await fetch('/api/export-blueprint-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan, formData }),
+      });
+      if (!res.ok) throw new Error('Blueprint PDF export failed');
+      const blob = await res.blob();
+      triggerDownload(blob, `Architectural-Blueprint-Set-${id || 'Package'}.pdf`);
+    } catch (e) {
+      console.error(e);
+      alert('Failed to download complete blueprint set. Please try again.');
+    } finally {
+      setIsExportingBlueprint(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 p-4 sm:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -255,6 +283,23 @@ export default function ProjectDetailsPage() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handleDownloadBlueprintPDF}
+              disabled={isExportingBlueprint}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-sky-700 hover:bg-sky-600 disabled:opacity-50 text-white text-xs font-bold rounded-lg shadow-sm transition"
+            >
+              {isExportingBlueprint ? (
+                <>
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white" />
+                  <span>Generating A3 PDF...</span>
+                </>
+              ) : (
+                <>
+                  <span>📥</span>
+                  <span>Download Blueprint Package (A3 PDF)</span>
+                </>
+              )}
+            </button>
             <Link
               href="/start"
               className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg shadow-sm transition"
@@ -295,20 +340,43 @@ export default function ProjectDetailsPage() {
         )}
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-slate-200 gap-6 text-sm font-semibold text-slate-600 overflow-x-auto whitespace-nowrap pb-1 sm:pb-0">
-          {(['2d', '3d', 'budget', 'regulatory', 'history'] as const).map((tab) => (
+        <div className="flex border-b border-slate-200 gap-4 text-xs font-semibold text-slate-600 overflow-x-auto whitespace-nowrap pb-1 sm:pb-0">
+          {(
+            [
+              '2d',
+              'structural',
+              'foundation',
+              'openings',
+              'services',
+              'elevation',
+              '3d',
+              'budget',
+              'regulatory',
+              'history',
+            ] as const
+          ).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`pb-3 capitalize transition-all border-b-2 flex items-center gap-1.5 ${
                 activeTab === tab
-                  ? 'border-sky-600 text-sky-600'
+                  ? 'border-sky-600 text-sky-600 font-bold'
                   : 'border-transparent hover:text-slate-900'
               }`}
             >
               <span>
                 {tab === '2d'
                   ? '2D Floor Plans'
+                  : tab === 'structural'
+                  ? 'Structural Grid (S-01)'
+                  : tab === 'foundation'
+                  ? 'Foundation & RCC (S-03)'
+                  : tab === 'openings'
+                  ? 'Doors & Windows (W-07)'
+                  : tab === 'services'
+                  ? 'MEP Services (E-01)'
+                  : tab === 'elevation'
+                  ? 'Front Elevation (W-01)'
                   : tab === '3d'
                   ? '3D Structure'
                   : tab === 'budget'
@@ -334,17 +402,55 @@ export default function ProjectDetailsPage() {
 
         {/* Tab Content */}
         {activeTab === '2d' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {plan.floors.map((floor) => (
-              <FloorPlanSVG
-                key={floor.level}
-                floor={floor}
-                plotWidth={plan.plot.width}
-                plotLength={plan.plot.length}
-              />
-            ))}
+          <div className="space-y-6">
+            <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-xs">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-sky-700">🏛️ SHEET P-01: ARCHITECTURAL WORKING FLOOR PLANS</span>
+                <span className="text-slate-400">&bull;</span>
+                <span className="text-slate-600">{plan.floors.length} Levels Defined</span>
+              </div>
+              <button
+                onClick={handleDownloadBlueprintPDF}
+                disabled={isExportingBlueprint}
+                className="px-3 py-1.5 bg-sky-700 hover:bg-sky-600 text-white font-semibold rounded-lg shadow-sm transition"
+              >
+                📥 Download Blueprint Set (PDF)
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {plan.floors.map((floor) => (
+                <FloorPlanSVG
+                  key={floor.level}
+                  floor={floor}
+                  plotWidth={plan.plot.width}
+                  plotLength={plan.plot.length}
+                />
+              ))}
+            </div>
           </div>
         )}
+
+        {activeTab === 'structural' && (
+          <StructuralGridSheet
+            plan={plan}
+            plotWidth={plan.plot.width}
+            plotLength={plan.plot.length}
+          />
+        )}
+
+        {activeTab === 'foundation' && (
+          <FoundationRCCSheet
+            plan={plan}
+            plotWidth={plan.plot.width}
+            plotLength={plan.plot.length}
+          />
+        )}
+
+        {activeTab === 'openings' && <DoorWindowScheduleSheet plan={plan} />}
+
+        {activeTab === 'services' && <MEPServicesSheet plan={plan} />}
+
+        {activeTab === 'elevation' && <FrontElevationSheet plan={plan} />}
 
         {activeTab === '3d' && <ThreeDViewer plan={plan} />}
 

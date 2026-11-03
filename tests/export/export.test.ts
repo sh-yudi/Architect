@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { generatePlanDXF } from '@/lib/export/dxfWriter';
 import { generateIndemnityAffidavitPDF } from '@/lib/export/affidavitPdf';
+import { generateArchitecturalBlueprintPDF } from '@/lib/export/blueprintPdf';
 import { HousePlan } from '@/types/plan';
 import { WizardFormData } from '@/types/wizard';
 import { PDFDocument } from 'pdf-lib';
@@ -122,5 +123,40 @@ describe('CAD & Regulatory Export Engine', () => {
     expect(pdfBytes).toBeInstanceOf(Uint8Array);
     const loadedDoc = await PDFDocument.load(pdfBytes);
     expect(loadedDoc.getPageCount()).toBe(1);
+  });
+
+  it('should generate multi-sheet A3 landscape blueprint set PDF with 10 professional sheets', async () => {
+    const multiFloorPlan: HousePlan = {
+      ...mockPlan,
+      floors: [
+        {
+          level: 0,
+          floorName: 'Ground Floor & Stilt Parking',
+          rooms: [
+            { id: 'g-park', name: 'Covered Car Parking', x: 3, y: 10, width: 20, length: 30, doors: [], windows: [] },
+            { id: 'g-gard', name: 'Backyard Garden', x: 3, y: 42, width: 20, length: 6, doors: [], windows: [] },
+          ],
+        },
+        {
+          level: 1,
+          floorName: 'First Floor Plan',
+          rooms: [
+            { id: 'f1-bed1', name: 'Master Suite 1', x: 3, y: 10, width: 12, length: 14, doors: [], windows: [] },
+          ],
+        },
+      ],
+    };
+
+    const pdfBytes = await generateArchitecturalBlueprintPDF(multiFloorPlan, mockFormData);
+    expect(pdfBytes).toBeInstanceOf(Uint8Array);
+    expect(pdfBytes.length).toBeGreaterThan(2000);
+
+    const doc = await PDFDocument.load(pdfBytes);
+    expect(doc.getPageCount()).toBe(10);
+
+    // Verify A3 Landscape dimensions (1191 x 842 pt)
+    const page1 = doc.getPage(0);
+    expect(page1.getWidth()).toBe(1191);
+    expect(page1.getHeight()).toBe(842);
   });
 });

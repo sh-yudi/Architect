@@ -228,4 +228,50 @@ describe('ProjectDetailsPage Component', () => {
     expect(getByText('Saved Architectural Plans & Revisions')).toBeDefined();
     expect(getByText(/Currently Active Blueprint/)).toBeDefined();
   });
+
+  it('should switch between new architectural engineering sheets tabs', () => {
+    sessionStorage.setItem('plan_test-123', JSON.stringify(mockPlan));
+
+    const { getByText } = render(<ProjectDetailsPage />);
+
+    // Switch to Structural Grid tab
+    fireEvent.click(getByText('Structural Grid (S-01)'));
+    expect(getByText('Column Centerline Grid Plan')).toBeDefined();
+
+    // Switch to Foundation & RCC tab
+    fireEvent.click(getByText('Foundation & RCC (S-03)'));
+    expect(getByText('Foundation & RCC Reinforcement Schedules')).toBeDefined();
+
+    // Switch to Doors & Windows tab
+    fireEvent.click(getByText('Doors & Windows (W-07)'));
+    expect(getByText('Schedule of Doors & Windows')).toBeDefined();
+
+    // Switch to MEP Services tab
+    fireEvent.click(getByText('MEP Services (E-01)'));
+    expect(getByText(/MEP Services & Plumbing Drainage Layout/)).toBeDefined();
+
+    // Switch to Front Elevation tab
+    fireEvent.click(getByText('Front Elevation (W-01)'));
+    expect(getByText('Front Elevation Working Drawing')).toBeDefined();
+  });
+
+  it('should trigger Blueprint Package PDF export on header button click', async () => {
+    sessionStorage.setItem('plan_test-123', JSON.stringify(mockPlan));
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      blob: () => Promise.resolve(new Blob(['test-blueprint-pdf'], { type: 'application/pdf' })),
+    });
+    globalThis.fetch = fetchMock;
+
+    const { getByText } = render(<ProjectDetailsPage />);
+    const downloadPdfBtn = getByText('Download Blueprint Package (A3 PDF)');
+    fireEvent.click(downloadPdfBtn);
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/export-blueprint-pdf', expect.objectContaining({
+        method: 'POST',
+      }));
+    });
+  });
 });

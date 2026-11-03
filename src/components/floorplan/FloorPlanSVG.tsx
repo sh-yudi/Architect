@@ -561,24 +561,51 @@ export const FloorPlanSVG: React.FC<FloorPlanSVGProps> = ({
         </div>
       </div>
 
-      {/* Professional Title Block (CAD Sheet Footer) */}
+      {/* Professional Architectural Title Block (CAD Sheet Footer) */}
       <div
-        className={`w-full mt-3 p-3 rounded-xl border flex flex-wrap justify-between items-center text-xs font-mono gap-2 ${
+        className={`w-full mt-3 p-3.5 rounded-xl border flex flex-col gap-2.5 text-xs font-mono ${
           isBlueprint
-            ? 'bg-slate-900/80 border-sky-900 text-sky-300'
-            : 'bg-slate-50 border-slate-200 text-slate-600'
+            ? 'bg-slate-900/90 border-sky-900 text-sky-300'
+            : 'bg-slate-50 border-slate-200 text-slate-700'
         }`}
       >
-        <div className="flex items-center gap-4">
-          <span className="font-semibold uppercase tracking-wider text-sky-600">
-            DRAWING: {floor.floorName.toUpperCase()}
-          </span>
-          <span className="hidden sm:inline">SCALE: 1&quot; = 1&apos;-0&quot;</span>
-          <span className="hidden sm:inline">AUTOCAD / DXF COMPLIANT</span>
+        <div className="flex flex-wrap justify-between items-center gap-2 border-b border-inherit pb-2">
+          <div className="flex items-center gap-3">
+            <span className="font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400">
+              DRAWING: {floor.floorName.toUpperCase()}
+            </span>
+            <span className="px-2 py-0.5 rounded bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-sky-300 font-bold">
+              SHEET: P-0{floor.level + 1}
+            </span>
+            <span className="hidden sm:inline">SCALE: 1:100 (N.T.S.)</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+              CARPET AREA: {totalFloorArea} SQ FT
+            </span>
+            <span className="hidden md:inline px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-[10px]">
+              AUTOCAD / DXF COMPLIANT
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <span>UPOBPAS / GDA APPROVED GRID</span>
-          <span className="font-bold text-emerald-600">{totalFloorArea} SQ FT</span>
+
+        {/* Architectural Notes & Level Markers */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-[11px] leading-relaxed">
+          <div className="flex flex-col">
+            <span className="font-bold text-slate-900 dark:text-slate-100">LEVEL DATUMS:</span>
+            <span>ROAD LEVEL: ±0&apos;-0&quot; &bull; PLINTH: +3&apos;-0&quot;</span>
+            <span>FLOOR TO CEILING: {floor.level === 0 ? "9'-6\" (STILT)" : "10'-6\" (UPPER)"}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="font-bold text-slate-900 dark:text-slate-100">WALL SPECIFICATIONS:</span>
+            <span>EXTERNAL WALLS: 9&quot; (230mm) BRICK</span>
+            <span>INTERNAL PARTITIONS: 5&quot; (115mm) BRICK</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="font-bold text-slate-900 dark:text-slate-100">DOOR &amp; WINDOW SCHEDULE:</span>
+            <span>DR: 3&apos;6&quot;×7&apos;0&quot; &bull; DR1: 3&apos;0&quot;×7&apos;0&quot; &bull; DB: 2&apos;6&quot;×7&apos;0&quot;</span>
+            <span>W: 6&apos;0&quot;×5&apos;0&quot; &bull; W1: 5&apos;0&quot;×5&apos;0&quot; &bull; V: 2&apos;3&quot;×1&apos;6&quot;</span>
+          </div>
         </div>
       </div>
 

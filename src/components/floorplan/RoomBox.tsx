@@ -326,10 +326,14 @@ export const RoomBox: React.FC<RoomBoxProps> = ({ room, scale, theme = 'light' }
       {room.windows?.map((win, idx) => {
         const winOffset = (win.offset || 2) * scale;
         const winWidth = Math.max(win.width * scale, 16);
+        const winTag = (lowerName.includes('bath') || lowerName.includes('toilet'))
+          ? 'V'
+          : (win.width >= 5.5 ? 'W' : 'W1');
 
         if (win.wall === 'top' || win.wall === 'bottom') {
           const wy = win.wall === 'top' ? y : y + height;
           const wx = Math.min(x + winOffset, x + width - winWidth - 2);
+          const tagY = win.wall === 'top' ? wy - 6 : wy + 10;
           return (
             <g key={`win-${idx}`}>
               <line
@@ -358,11 +362,24 @@ export const RoomBox: React.FC<RoomBoxProps> = ({ room, scale, theme = 'light' }
               />
               <line x1={wx} y1={wy - 3} x2={wx} y2={wy + 3} stroke={isBlueprint ? '#7dd3fc' : '#334155'} strokeWidth="1" />
               <line x1={wx + winWidth} y1={wy - 3} x2={wx + winWidth} y2={wy + 3} stroke={isBlueprint ? '#7dd3fc' : '#334155'} strokeWidth="1" />
+              {/* Window Type Tag (W, W1, V) */}
+              <text
+                x={wx + winWidth / 2}
+                y={tagY}
+                textAnchor="middle"
+                fill={isBlueprint ? '#38bdf8' : '#0284c7'}
+                fontSize="7"
+                fontFamily="monospace"
+                fontWeight="700"
+              >
+                {winTag}
+              </text>
             </g>
           );
         } else {
           const wx = win.wall === 'left' ? x : x + width;
           const wy = Math.min(y + winOffset, y + height - winWidth - 2);
+          const tagX = win.wall === 'left' ? wx - 6 : wx + 8;
           return (
             <g key={`win-${idx}`}>
               <line
@@ -391,15 +408,32 @@ export const RoomBox: React.FC<RoomBoxProps> = ({ room, scale, theme = 'light' }
               />
               <line x1={wx - 3} y1={wy} x2={wx + 3} y2={wy} stroke={isBlueprint ? '#7dd3fc' : '#334155'} strokeWidth="1" />
               <line x1={wx - 3} y1={wy + winWidth} x2={wx + 3} y2={wy + winWidth} stroke={isBlueprint ? '#7dd3fc' : '#334155'} strokeWidth="1" />
+              {/* Window Type Tag (W, W1, V) */}
+              <text
+                x={tagX}
+                y={wy + winWidth / 2 + 2.5}
+                textAnchor="middle"
+                fill={isBlueprint ? '#38bdf8' : '#0284c7'}
+                fontSize="7"
+                fontFamily="monospace"
+                fontWeight="700"
+              >
+                {winTag}
+              </text>
             </g>
           );
         }
       })}
 
-      {/* Architectural Door Openings with 90° Swing Arcs */}
+      {/* Architectural Door Openings with 90° Swing Arcs & Door Tags */}
       {room.doors?.map((door, idx) => {
         const doorOffset = (door.offset || 1.5) * scale;
         const doorWidth = Math.max((door.width || 3) * scale, 14);
+        const doorTag = (lowerName.includes('bath') || lowerName.includes('toilet'))
+          ? 'DB'
+          : (isBalcony || lowerName.includes('terrace'))
+          ? 'SD'
+          : (door.width <= 3.0 ? 'DR1' : 'DR');
 
         if (door.wall === 'top') {
           const dx = Math.min(x + doorOffset, x + width - doorWidth - 2);
@@ -415,6 +449,16 @@ export const RoomBox: React.FC<RoomBoxProps> = ({ room, scale, theme = 'light' }
                 strokeWidth="1"
                 strokeDasharray="2 2"
               />
+              <text
+                x={dx + 6}
+                y={dy + 9}
+                fill={isBlueprint ? '#38bdf8' : '#0284c7'}
+                fontSize="6.5"
+                fontFamily="monospace"
+                fontWeight="700"
+              >
+                {doorTag}
+              </text>
             </g>
           );
         } else if (door.wall === 'bottom') {
@@ -431,6 +475,16 @@ export const RoomBox: React.FC<RoomBoxProps> = ({ room, scale, theme = 'light' }
                 strokeWidth="1"
                 strokeDasharray="2 2"
               />
+              <text
+                x={dx + 6}
+                y={dy - 4}
+                fill={isBlueprint ? '#38bdf8' : '#0284c7'}
+                fontSize="6.5"
+                fontFamily="monospace"
+                fontWeight="700"
+              >
+                {doorTag}
+              </text>
             </g>
           );
         } else if (door.wall === 'left') {
@@ -447,6 +501,16 @@ export const RoomBox: React.FC<RoomBoxProps> = ({ room, scale, theme = 'light' }
                 strokeWidth="1"
                 strokeDasharray="2 2"
               />
+              <text
+                x={dx + 8}
+                y={dy + 8}
+                fill={isBlueprint ? '#38bdf8' : '#0284c7'}
+                fontSize="6.5"
+                fontFamily="monospace"
+                fontWeight="700"
+              >
+                {doorTag}
+              </text>
             </g>
           );
         } else {
@@ -463,10 +527,94 @@ export const RoomBox: React.FC<RoomBoxProps> = ({ room, scale, theme = 'light' }
                 strokeWidth="1"
                 strokeDasharray="2 2"
               />
+              <text
+                x={dx - 14}
+                y={dy + 8}
+                fill={isBlueprint ? '#38bdf8' : '#0284c7'}
+                fontSize="6.5"
+                fontFamily="monospace"
+                fontWeight="700"
+              >
+                {doorTag}
+              </text>
             </g>
           );
         }
       })}
+
+      {/* Built-in Wardrobe Slider Graphic for Bedrooms */}
+      {(lowerName.includes('bed') || lowerName.includes('master')) && width >= 70 && height >= 65 && (
+        <g opacity={isBlueprint ? 0.7 : 0.6} className="pointer-events-none select-none">
+          <rect
+            x={x + width - 24}
+            y={y + 16}
+            width={18}
+            height={Math.min(50, height - 32)}
+            fill="none"
+            stroke={isBlueprint ? '#38bdf8' : '#475569'}
+            strokeWidth="0.8"
+            strokeDasharray="3 2"
+          />
+          <text
+            x={x + width - 15}
+            y={y + 16 + Math.min(50, height - 32) / 2}
+            textAnchor="middle"
+            transform={`rotate(-90, ${x + width - 15}, ${y + 16 + Math.min(50, height - 32) / 2})`}
+            fill={isBlueprint ? '#7dd3fc' : '#64748b'}
+            fontSize="5.5"
+            fontFamily="monospace"
+            fontWeight="600"
+            letterSpacing="0.05em"
+          >
+            WARDROBE
+          </text>
+        </g>
+      )}
+
+      {/* Toilet WC Commode & Basin Graphic for Bathrooms */}
+      {(lowerName.includes('bath') || lowerName.includes('toilet') || lowerName.includes('powder')) && width >= 40 && height >= 40 && (
+        <g opacity={isBlueprint ? 0.7 : 0.6} className="pointer-events-none select-none">
+          {/* Commode Cistern & Bowl */}
+          <rect
+            x={x + 6}
+            y={y + 8}
+            width={12}
+            height={5}
+            rx={1}
+            fill="none"
+            stroke={isBlueprint ? '#38bdf8' : '#0891b2'}
+            strokeWidth="0.9"
+          />
+          <ellipse
+            cx={x + 12}
+            cy={y + 17}
+            rx={4.5}
+            ry={5.5}
+            fill="none"
+            stroke={isBlueprint ? '#38bdf8' : '#0891b2'}
+            strokeWidth="0.9"
+          />
+          {/* Washbasin Counter */}
+          <rect
+            x={x + width - 18}
+            y={y + 8}
+            width={12}
+            height={10}
+            rx={2}
+            fill="none"
+            stroke={isBlueprint ? '#38bdf8' : '#0891b2'}
+            strokeWidth="0.8"
+          />
+          <circle
+            cx={x + width - 12}
+            cy={y + 13}
+            r={3}
+            fill="none"
+            stroke={isBlueprint ? '#38bdf8' : '#0891b2'}
+            strokeWidth="0.7"
+          />
+        </g>
+      )}
 
       {/* Center Information Block */}
       <g
