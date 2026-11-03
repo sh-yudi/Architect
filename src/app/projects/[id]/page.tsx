@@ -232,7 +232,7 @@ export default function ProjectDetailsPage() {
         )}
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-slate-200 gap-6 text-sm font-semibold text-slate-600">
+        <div className="flex border-b border-slate-200 gap-6 text-sm font-semibold text-slate-600 overflow-x-auto whitespace-nowrap pb-1 sm:pb-0">
           {(['2d', '3d', 'budget', 'regulatory'] as const).map((tab) => (
             <button
               key={tab}
