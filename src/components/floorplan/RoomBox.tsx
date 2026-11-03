@@ -468,9 +468,8 @@ export const RoomBox: React.FC<RoomBoxProps> = ({ room, scale, theme = 'light' }
         }
       })}
 
-      {/* Center Information Block with SVG ClipPath Guarantee */}
+      {/* Center Information Block */}
       <g
-        clipPath={`url(#clip-${room.id})`}
         transform={`translate(${centerX}, ${centerY})`}
         className="pointer-events-none select-none"
       >

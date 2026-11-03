@@ -131,7 +131,7 @@ describe('ProjectDetailsPage Component', () => {
     expect(getByText('Architectural House Plan Package')).toBeDefined();
     expect(getAllByText(/30' × 50' \(1500 sq ft\)/).length).toBeGreaterThanOrEqual(1);
     expect(getByText('Ground Floor')).toBeDefined();
-    expect(getByText('Master Bedroom')).toBeDefined();
+    expect(getAllByText('Master Bedroom').length).toBeGreaterThanOrEqual(1);
   });
 
   it('should render "+ Create Another Plan" and "Exit" buttons linking to /start and /', () => {

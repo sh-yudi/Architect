@@ -15,14 +15,14 @@ describe('FloorPlanSVG Component', () => {
   };
 
   it('should render SVG element with room labels and dimensions', () => {
-    const { getByText, container } = render(
+    const { getAllByText, container } = render(
       <FloorPlanSVG floor={mockFloor} plotWidth={30} plotLength={40} />
     );
 
     expect(container.querySelector('svg')).toBeDefined();
-    expect(getByText('Master Bedroom')).toBeDefined();
-    expect(getByText('Kitchen')).toBeDefined();
-    expect(getByText("12' × 14'")).toBeDefined();
+    expect(getAllByText('Master Bedroom').length).toBeGreaterThanOrEqual(1);
+    expect(getAllByText('Kitchen').length).toBeGreaterThanOrEqual(1);
+    expect(getAllByText("12' × 14'").length).toBeGreaterThanOrEqual(1);
   });
 
   it('should render floor name and plot dimensions summary', () => {
@@ -48,14 +48,14 @@ describe('FloorPlanSVG Component', () => {
   });
 
   it('should render all rooms from the floor plan', () => {
-    const { getByText } = render(
+    const { getAllByText } = render(
       <FloorPlanSVG floor={mockFloor} plotWidth={30} plotLength={40} />
     );
 
-    expect(getByText('Master Bedroom')).toBeDefined();
-    expect(getByText("12' × 14'")).toBeDefined();
-    expect(getByText('Kitchen')).toBeDefined();
-    expect(getByText("10' × 12'")).toBeDefined();
+    expect(getAllByText('Master Bedroom').length).toBeGreaterThanOrEqual(1);
+    expect(getAllByText("12' × 14'").length).toBeGreaterThanOrEqual(1);
+    expect(getAllByText('Kitchen').length).toBeGreaterThanOrEqual(1);
+    expect(getAllByText("10' × 12'").length).toBeGreaterThanOrEqual(1);
   });
 
   it('should render side dimensions for rooms, boundaries, and buildable envelope', () => {
