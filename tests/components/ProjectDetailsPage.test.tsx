@@ -134,6 +134,20 @@ describe('ProjectDetailsPage Component', () => {
     expect(getByText('Master Bedroom')).toBeDefined();
   });
 
+  it('should render "+ Create Another Plan" and "Exit" buttons linking to /start and /', () => {
+    sessionStorage.setItem('plan_test-123', JSON.stringify(mockPlan));
+
+    const { getAllByText } = render(<ProjectDetailsPage />);
+
+    const anotherPlanLinks = getAllByText('+ Create Another Plan');
+    expect(anotherPlanLinks.length).toBeGreaterThanOrEqual(1);
+    expect(anotherPlanLinks[0].closest('a')?.getAttribute('href')).toBe('/start');
+
+    const exitLinks = getAllByText('Exit');
+    expect(exitLinks.length).toBeGreaterThanOrEqual(1);
+    expect(exitLinks[0].closest('a')?.getAttribute('href')).toBe('/');
+  });
+
   it('should switch between tabs: 3D Structure, Cost & BOQ, and Municipal Sanction', () => {
     sessionStorage.setItem('plan_test-123', JSON.stringify(mockPlan));
 

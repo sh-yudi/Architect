@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { IntakeWizard } from '@/components/wizard/IntakeWizard';
 import { WizardFormData } from '@/types/wizard';
 
@@ -34,6 +35,15 @@ export default function StartPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6">
+      <div className="max-w-4xl mx-auto mb-6">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition px-3 py-1.5 rounded-lg hover:bg-slate-200/60"
+        >
+          &larr; Exit to Home
+        </Link>
+      </div>
+
       <div className="max-w-4xl mx-auto mb-8 text-center">
         <h1 className="text-3xl font-extrabold text-slate-900">Custom House Plan Generator</h1>
         <p className="mt-2 text-sm text-slate-600">

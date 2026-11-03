@@ -191,7 +191,13 @@ export default function ProjectDetailsPage() {
               {plan.facade.style} Façade &bull; {plan.floors.length} Levels &bull; Ghaziabad (GDA)
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/start"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg shadow-sm transition"
+            >
+              <span>+ Create Another Plan</span>
+            </Link>
             <button
               onClick={handleDownloadCAD}
               disabled={isExportingCAD}
@@ -199,6 +205,12 @@ export default function ProjectDetailsPage() {
             >
               {isExportingCAD ? 'Exporting CAD...' : 'Export CAD (.DXF)'}
             </button>
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-300 transition"
+            >
+              <span>Exit</span>
+            </Link>
           </div>
         </div>
 
@@ -267,6 +279,27 @@ export default function ProjectDetailsPage() {
             onDownloadAffidavit={handleDownloadAffidavit}
           />
         )}
+
+        {/* Bottom Actions Bar */}
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="text-xs text-slate-500 text-center sm:text-left">
+            Need to generate another house layout with different dimensions or wishlist?
+          </div>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/start"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg shadow-sm transition"
+            >
+              <span>+ Create Another Plan</span>
+            </Link>
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-300 transition"
+            >
+              <span>Exit</span>
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );
